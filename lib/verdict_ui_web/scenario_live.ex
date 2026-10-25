@@ -125,6 +125,7 @@ defmodule VerdictUIWeb.ScenarioLive do
             </form>
           </div>
 
+          <form id="scenario-options" class="space-y-2">
           <label
             id="allow-unsafe"
             for="scenario-allow-unsafe"
@@ -167,6 +168,7 @@ defmodule VerdictUIWeb.ScenarioLive do
               </span>
             </span>
           </label>
+          </form>
 
           <div class="flex gap-2 pt-1">
             <button type="button" id="save-btn" phx-click="save" class="btn btn-primary btn-sm">

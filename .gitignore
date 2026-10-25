@@ -16,6 +16,9 @@
 # If the VM crashes, it generates a dump, let's ignore it too.
 erl_crash.dump
 
+# Ignore dev server logs
+/log/*.log
+
 # Also ignore archive artifacts (built via "mix archive.build").
 *.ez
 

@@ -1,0 +1,83 @@
+defmodule VerdictUIWeb.ScenarioLiveTest do
+  @moduledoc false
+  use VerdictUIWeb.ConnCase, async: false
+
+  import Phoenix.LiveViewTest
+
+  alias VerdictUI
+
+  @rule_a %{
+    name: "ra",
+    priority: 2,
+    event: %{"type" => "e"},
+    conditions: %{"all" => [%{"fact" => "x", "operator" => "equal", "value" => 1}]}
+  }
+
+  @rule_b %{
+    name: "rb",
+    priority: 1,
+    event: %{"type" => "e"},
+    conditions: %{"all" => [%{"fact" => "x", "operator" => "greaterThan", "value" => 5}]}
+  }
+
+  test "selects rules, adds a fact, runs, and saves the scenario", %{conn: conn} do
+    {:ok, a} = VerdictUI.create_rule(@rule_a)
+    {:ok, b} = VerdictUI.create_rule(@rule_b)
+    {:ok, view, _} = live(conn, ~p"/scenarios/new")
+
+    view |> element("#scenario-name") |> render_change(%{"scenario[name]" => "reg"})
+
+    view |> render_change("toggle-rule", %{"_target" => ["rule-#{a.id}"], "rule-#{a.id}" => a.id})
+    view |> render_change("toggle-rule", %{"_target" => ["rule-#{b.id}"], "rule-#{b.id}" => b.id})
+
+    view |> render_click("add-fact")
+    view |> render_change("fact", %{"_target" => ["fact-0-name"], "fact-0-name" => "x"})
+    view |> render_change("fact", %{"_target" => ["fact-0-value"], "fact-0-value" => "10"})
+
+    render_click(view, "run")
+    # rb: x > 5
+    assert has_element?(view, "#run-result .badge-success")
+    # ra: x == 1
+    assert has_element?(view, "#run-result .badge-error")
+
+    render_click(view, "save")
+    scenario = Enum.find(VerdictUI.list_scenarios(), &(&1.name == "reg"))
+    assert scenario != nil
+    assert MapSet.equal?(MapSet.new(scenario.rule_ids), MapSet.new([a.id, b.id]))
+    assert scenario.facts == %{"x" => 10}
+  end
+
+  test "loads a saved scenario and re-runs it", %{conn: conn} do
+    {:ok, a} = VerdictUI.create_rule(@rule_a)
+
+    {:ok, scenario} =
+      VerdictUI.create_scenario(%{name: "reg", facts: %{"x" => 1}, rule_ids: [a.id]})
+
+    {:ok, view, html} = live(conn, ~p"/scenarios/#{scenario.id}")
+    assert html =~ "reg"
+    # the saved fact row is loaded
+    assert has_element?(view, "input[name=fact-0-name][value=x]")
+
+    render_click(view, "run")
+    # x == 1 fires ra
+    assert has_element?(view, "#run-result .badge-success")
+  end
+
+  test "shows rendered event params in the result", %{conn: conn} do
+    {:ok, a} =
+      VerdictUI.create_rule(%{
+        name: "tmpl",
+        event: %{"type" => "hi", "params" => %{"msg" => %{"eex_string" => "Hey <%= who %>!"}}},
+        conditions: %{"all" => [%{"fact" => "who", "operator" => "notEqual", "value" => ""}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/scenarios/new")
+    view |> render_change("toggle-rule", %{"_target" => ["rule-#{a.id}"], "rule-#{a.id}" => a.id})
+    view |> render_click("add-fact")
+    view |> render_change("fact", %{"_target" => ["fact-0-name"], "fact-0-name" => "who"})
+    view |> render_change("fact", %{"_target" => ["fact-0-value"], "fact-0-value" => "Sam"})
+    render_click(view, "run")
+
+    assert render(view) =~ "Hey Sam!"
+  end
+end

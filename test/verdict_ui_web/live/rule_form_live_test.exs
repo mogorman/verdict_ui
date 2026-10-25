@@ -1,0 +1,146 @@
+defmodule VerdictUIWeb.RuleFormLiveTest do
+  @moduledoc false
+  use VerdictUIWeb.ConnCase, async: false
+
+  import Phoenix.LiveViewTest
+
+  alias VerdictUI
+
+  @attrs %{
+    name: "fouled-out",
+    priority: 5,
+    event: %{"type" => "fouledOut"},
+    conditions: %{
+      "all" => [
+        %{"fact" => "gameDuration", "operator" => "equal", "value" => 40},
+        %{"fact" => "personalFoulCount", "operator" => "greaterThanInclusive", "value" => 5}
+      ]
+    }
+  }
+
+  test "renders a new rule form with an empty all group", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+    assert render(view) =~ "New rule"
+    assert has_element?(view, "#rule-form")
+    assert render(view) =~ "No conditions yet"
+  end
+
+  test "creates a rule by building a condition and saving", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+
+    view |> element("button", "+ condition") |> render_click()
+    assert has_element?(view, "input[name=cond-0-fact]")
+
+    view
+    |> element("input[name=cond-0-fact]")
+    |> render_change(%{"cond-0-fact" => "gameDuration"})
+
+    view |> element("input[name=cond-0-value]") |> render_change(%{"cond-0-value" => "40"})
+
+    view
+    |> form("#rule-form", %{rule: %{name: "duration", priority: 1, event_type: "overtime"}})
+    |> render_submit()
+
+    [rule] = VerdictUI.list_rules()
+    assert rule.name == "duration"
+    assert rule.event.type == "overtime"
+    assert length(rule.conditions["all"]) == 1
+    assert hd(rule.conditions["all"])["fact"] == "gameDuration"
+    assert hd(rule.conditions["all"])["value"] == 40
+  end
+
+  test "shows an error and persists nothing when a leaf fact is empty", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+
+    view |> element("button", "+ condition") |> render_click()
+
+    view
+    |> form("#rule-form", %{rule: %{name: "bad", priority: 1, event_type: "x"}})
+    |> render_submit()
+
+    assert has_element?(view, "#save-errors")
+    assert VerdictUI.list_rules() == []
+  end
+
+  test "edit form loads an existing rule and its conditions", %{conn: conn} do
+    {:ok, rule} = VerdictUI.create_rule(@attrs)
+    {:ok, view, _} = live(conn, ~p"/rules/#{rule.id}/edit")
+    assert render(view) =~ "Edit rule"
+    assert has_element?(view, ~s(input[name="rule[name]"][value="fouled-out"]))
+    assert has_element?(view, ~s(input[name="cond-0-fact"][value="gameDuration"]))
+    assert has_element?(view, ~s(input[name="cond-1-fact"][value="personalFoulCount"]))
+  end
+
+  test "saves event params", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+
+    view |> render_click("add-param")
+    assert has_element?(view, "input[name=param-0-name]")
+
+    view |> render_change("param", %{"_target" => ["param-0-name"], "param-0-name" => "message"})
+
+    view
+    |> render_change("param", %{"_target" => ["param-0-value"], "param-0-value" => "Overtime!"})
+
+    view
+    |> form("#rule-form", %{rule: %{name: "ot", priority: 1, event_type: "overtime"}})
+    |> render_submit()
+
+    [rule] = VerdictUI.list_rules()
+    assert rule.event.type == "overtime"
+    assert rule.event.params == %{"message" => "Overtime!"}
+  end
+
+  test "saves an eex_string template param", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+
+    view |> render_click("add-param")
+    view |> render_change("param", %{"_target" => ["param-0-name"], "param-0-name" => "msg"})
+
+    view
+    |> render_change("param", %{"_target" => ["param-0-value"], "param-0-value" => "hi <%= x %>"})
+
+    view
+    |> render_change("param", %{"_target" => ["param-0-template"], "param-0-template" => "true"})
+
+    view
+    |> form("#rule-form", %{rule: %{name: "t", priority: 1, event_type: "e"}})
+    |> render_submit()
+
+    [rule] = VerdictUI.list_rules()
+    assert rule.event.params == %{"msg" => %{"eex_string" => "hi <%= x %>"}}
+  end
+
+  test "edit form loads a template param with the toggle checked", %{conn: conn} do
+    {:ok, rule} =
+      VerdictUI.create_rule(%{
+        name: "tpl",
+        event: %{"type" => "e", "params" => %{"msg" => %{"eex_string" => "hi <%= x %>"}}},
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/rules/#{rule.id}/edit")
+    assert has_element?(view, "input[name=param-0-template][checked]")
+    assert render(view) =~ "hi &lt;%= x %&gt;"
+  end
+
+  test "blocks saving an ill-formed eex template", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+
+    view |> render_click("add-param")
+    view |> render_change("param", %{"_target" => ["param-0-name"], "param-0-name" => "msg"})
+
+    view
+    |> render_change("param", %{"_target" => ["param-0-value"], "param-0-value" => "<%= broken"})
+
+    view
+    |> render_change("param", %{"_target" => ["param-0-template"], "param-0-template" => "true"})
+
+    view
+    |> form("#rule-form", %{rule: %{name: "t", priority: 1, event_type: "e"}})
+    |> render_submit()
+
+    assert has_element?(view, "#template-errors")
+    assert VerdictUI.list_rules() == []
+  end
+end

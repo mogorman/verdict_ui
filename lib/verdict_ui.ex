@@ -142,12 +142,19 @@ defmodule VerdictUI do
   @doc """
   Runs `rules` together against the engine with `facts` (a `name => value` map).
 
+  Results come back ordered by priority (highest first), then by name
+  alphabetically.
+
   `opts` are forwarded to both `Verdict.Engine.new/1` and `Verdict.Engine.run/3`
   (the latter so run-time options like `:schedule` and `:parallel_concurrency`
   take effect); options omitted fall back to the engine defaults.
   Returns `{:ok, result_map}` or `{:error, message}`.
   """
   def run_rules(rules, facts, opts \\ []) when is_list(rules) and is_map(facts) do
+    # The store keeps rules in a map keyed by id, so the engine's within-priority
+    # ordering is nondeterministic. Sort the final results by priority then name.
+    priority_by_name = Map.new(rules, &{&1.name, &1.priority})
+
     try do
       engine =
         Enum.reduce(rules, Engine.new(opts), fn rule, eng ->
@@ -155,10 +162,20 @@ defmodule VerdictUI do
           eng
         end)
 
-      {:ok, RunResult.to_map(Engine.run(engine, facts, opts))}
+      result = RunResult.to_map(Engine.run(engine, facts, opts))
+      {:ok, order_results(result, priority_by_name)}
     rescue
       e -> {:error, Exception.message(e)}
     end
+  end
+
+  # Orders `result["results"]` by priority (highest first), then name ascending.
+  defp order_results(result, priority_by_name) do
+    results =
+      result["results"]
+      |> Enum.sort_by(fn r -> {-Map.get(priority_by_name, r["name"], 0), r["name"]} end)
+
+    Map.put(result, "results", results)
   end
 
   # Maps a saved scenario's option fields to the `run_opts/1` value map.

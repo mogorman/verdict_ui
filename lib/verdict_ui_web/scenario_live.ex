@@ -21,6 +21,8 @@ defmodule VerdictUIWeb.ScenarioLive do
            selected_ids: [],
            facts: [],
            result: nil,
+           rules_by_name: %{},
+           result_sort: "priority",
            error: nil,
            changeset: nil,
            allow_unsafe: false,
@@ -46,6 +48,8 @@ defmodule VerdictUIWeb.ScenarioLive do
                selected_ids: scenario.rule_ids,
                facts: facts_to_rows(scenario.facts),
                result: nil,
+               rules_by_name: %{},
+               result_sort: "priority",
                error: nil,
                changeset: nil,
                allow_unsafe: scenario.allow_unsafe || false,
@@ -335,7 +339,25 @@ defmodule VerdictUIWeb.ScenarioLive do
           </div>
 
           <div :if={@result} id="run-result">
-            <ResultsList.results_list results={@result["results"]} />
+            <div class="mb-3 flex items-center justify-end gap-2">
+              <label for="result-sort" class="text-xs text-zinc-500">Sort</label>
+
+              <select
+                id="result-sort"
+                name="result_sort"
+                phx-change="result-sort"
+                class="select select-xs"
+              >
+                <option value="priority" selected={@result_sort == "priority"}>Priority</option>
+                <option value="name" selected={@result_sort == "name"}>Name</option>
+                <option value="fired" selected={@result_sort == "fired"}>Fired</option>
+              </select>
+            </div>
+
+            <ResultsList.results_list
+              results={sorted_results(@result, @result_sort)["results"]}
+              rules_by_name={@rules_by_name}
+            />
 
             <details class="mt-3">
               <summary class="cursor-pointer select-none text-sm text-zinc-400 hover:text-zinc-200">
@@ -525,9 +547,18 @@ defmodule VerdictUIWeb.ScenarioLive do
     opts = VerdictUI.run_opts(assign_opts(socket))
 
     case VerdictUI.run_rules(rules, facts_map(socket.assigns.facts), opts) do
-      {:ok, result} -> {:noreply, assign(socket, result: result, error: nil)}
-      {:error, msg} -> {:noreply, assign(socket, result: nil, error: msg)}
+      {:ok, result} ->
+        {:noreply,
+         assign(socket, result: result, error: nil, rules_by_name: Map.new(rules, &{&1.name, &1}))}
+
+      {:error, msg} ->
+        {:noreply, assign(socket, result: nil, error: msg)}
     end
+  end
+
+  @impl true
+  def handle_event("result-sort", %{"result_sort" => sort}, socket) do
+    {:noreply, assign(socket, result_sort: sort)}
   end
 
   defp assign_opts(socket) do
@@ -555,5 +586,18 @@ defmodule VerdictUIWeb.ScenarioLive do
     |> Enum.reject(&(&1["name"] in [nil, ""]))
     |> Enum.map(&{&1["name"], ConditionTree.parse_value(&1["value"])})
     |> Map.new()
+  end
+
+  # Reorders a run result's per-rule list by the chosen sort. "priority" (default)
+  # is priority desc then name; "name" is alphabetical; "fired" is fired-first.
+  defp sorted_results(result, sort) do
+    sorted =
+      case sort do
+        "name" -> Enum.sort_by(result["results"], & &1["name"])
+        "fired" -> Enum.sort_by(result["results"], &{not &1["result"], &1["name"]})
+        _ -> Enum.sort_by(result["results"], &{-&1["priority"], &1["name"]})
+      end
+
+    Map.put(result, "results", sorted)
   end
 end

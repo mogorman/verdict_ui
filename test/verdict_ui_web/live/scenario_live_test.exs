@@ -50,6 +50,54 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
     assert scenario.facts == %{"x" => 10}
   end
 
+  test "renders the nested condition tree with ALL, ANY and NOT grouping", %{conn: conn} do
+    {:ok, rule} =
+      VerdictUI.create_rule(%{
+        name: "nested",
+        priority: 1,
+        event: %{"type" => "e"},
+        conditions: %{
+          "all" => [
+            %{"fact" => "x", "operator" => "equal", "value" => 1},
+            %{
+              "any" => [
+                %{"fact" => "y", "operator" => "equal", "value" => 10},
+                %{"fact" => "z", "operator" => "greaterThan", "value" => 5}
+              ]
+            },
+            %{"not" => %{"fact" => "w", "operator" => "equal", "value" => 0}}
+          ]
+        }
+      })
+
+    {:ok, view, _} = live(conn, ~p"/scenarios/new")
+
+    view
+    |> render_change("toggle-rule", %{
+      "_target" => ["rule-#{rule.id}"],
+      "rule-#{rule.id}" => rule.id
+    })
+
+    # x=1, y=10, w=1 -> all passes: x==1, any(y==10) short-circuits z, not(w==0) is true
+    for {i, name, value} <- [{"0", "x", "1"}, {"1", "y", "10"}, {"2", "w", "1"}] do
+      view |> render_click("add-fact")
+      view |> render_change("fact", %{"_target" => ["fact-#{i}-name"], "fact-#{i}-name" => name})
+
+      view
+      |> render_change("fact", %{"_target" => ["fact-#{i}-value"], "fact-#{i}-value" => value})
+    end
+
+    render_click(view, "run")
+
+    html = render(view)
+    assert html =~ ">ALL<"
+    assert html =~ ">ANY<"
+    assert html =~ ">NOT<"
+    assert html =~ "x equal 1"
+    assert html =~ "y equal 10"
+    assert has_element?(view, "#run-result .badge-success")
+  end
+
   test "saves engine options chosen in the form", %{conn: conn} do
     {:ok, view, _} = live(conn, ~p"/scenarios/new")
 
@@ -219,5 +267,66 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
     render_click(view, "run")
     assert has_element?(view, "#run-result")
     assert render(view) =~ "big"
+  end
+
+  test "reorders the results by the chosen sort", %{conn: conn} do
+    {:ok, zulu} =
+      VerdictUI.create_rule(%{
+        name: "zulu",
+        priority: 3,
+        event: %{"type" => "e"},
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, mike} =
+      VerdictUI.create_rule(%{
+        name: "mike",
+        priority: 2,
+        event: %{"type" => "e"},
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, alpha} =
+      VerdictUI.create_rule(%{
+        name: "alpha",
+        priority: 1,
+        event: %{"type" => "e"},
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "greaterThan", "value" => 5}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/scenarios/new")
+    view |> element("#scenario-name") |> render_change(%{"scenario[name]" => "sort"})
+
+    for r <- [zulu, mike, alpha] do
+      view
+      |> render_change("toggle-rule", %{"_target" => ["rule-#{r.id}"], "rule-#{r.id}" => r.id})
+    end
+
+    view |> render_click("add-fact")
+    view |> render_change("fact", %{"_target" => ["fact-0-name"], "fact-0-name" => "x"})
+    view |> render_change("fact", %{"_target" => ["fact-0-value"], "fact-0-value" => "1"})
+    render_click(view, "run")
+
+    # default: priority desc (zulu p3, mike p2, alpha p1)
+    assert result_order(view) == ["zulu", "mike", "alpha"]
+
+    view |> element("#result-sort") |> render_change(%{"result_sort" => "name"})
+    assert result_order(view) == ["alpha", "mike", "zulu"]
+
+    view |> element("#result-sort") |> render_change(%{"result_sort" => "fired"})
+    # fired first (mike, zulu), then not-fired (alpha); name asc within fired
+    assert result_order(view) == ["mike", "zulu", "alpha"]
+  end
+
+  defp result_order(view) do
+    html =
+      render(view)
+      |> String.split(~s|id="results"|, parts: 2)
+      |> Enum.at(1)
+      |> String.split(~s|<details|, parts: 2)
+      |> Enum.at(0)
+
+    Regex.scan(~r{font-semibold">([a-z]+)}, html, capture: :all_but_first)
+    |> List.flatten()
   end
 end

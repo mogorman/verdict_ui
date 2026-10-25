@@ -92,8 +92,10 @@ defmodule VerdictUI do
   together with the scenario's facts. Returns `{:ok, result_map}` (the
   `Verdict.RunResult.to_map/1` shape) or `{:error, message}`.
   """
-  def run_scenario(%Scenario{} = scenario),
-    do: run_rules(scenario_rules(scenario), scenario.facts)
+  def run_scenario(%Scenario{} = scenario) do
+    opts = if scenario.allow_unsafe, do: [allow_unsafe_eex: true], else: []
+    run_rules(scenario_rules(scenario), scenario.facts, opts)
+  end
 
   @doc """
   Runs `rules` together against the engine with `facts` (a `name => value` map).

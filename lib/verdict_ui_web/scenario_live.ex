@@ -40,7 +40,7 @@ defmodule VerdictUIWeb.ScenarioLive do
                result: nil,
                error: nil,
                changeset: nil,
-               allow_unsafe: false
+               allow_unsafe: scenario.allow_unsafe || false
              )}
 
           _ ->
@@ -123,13 +123,25 @@ defmodule VerdictUIWeb.ScenarioLive do
             </form>
           </div>
 
-          <label class="flex items-center gap-2 text-sm text-zinc-400">
+          <label
+            id="allow-unsafe"
+            for="scenario-allow-unsafe"
+            class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+          >
             <input
+              id="scenario-allow-unsafe"
               type="checkbox"
               name="allow_unsafe"
               phx-change="allow-unsafe"
-              class="checkbox checkbox-sm"
-            /> Allow unsafe EEx templates
+              checked={@allow_unsafe}
+              class="checkbox mt-0.5 shrink-0"
+            />
+            <span>
+              <span class="font-medium text-zinc-200">Allow unsafe EEx templates</span>
+              <span class="block text-xs text-zinc-500">
+                Enables control-flow templates (if / for / cond) in event params.
+              </span>
+            </span>
           </label>
 
           <div class="flex gap-2 pt-1">
@@ -229,7 +241,8 @@ defmodule VerdictUIWeb.ScenarioLive do
     attrs = %{
       name: socket.assigns.name,
       facts: facts_map(socket.assigns.facts),
-      rule_ids: socket.assigns.selected_ids
+      rule_ids: socket.assigns.selected_ids,
+      allow_unsafe: socket.assigns.allow_unsafe
     }
 
     result =

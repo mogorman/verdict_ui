@@ -80,4 +80,37 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
 
     assert render(view) =~ "Hey Sam!"
   end
+
+  test "allow-unsafe toggle enables control-flow event templates", %{conn: conn} do
+    {:ok, a} =
+      VerdictUI.create_rule(%{
+        name: "u",
+        event: %{
+          "type" => "verdict",
+          "params" => %{
+            "msg" => %{"eex_string" => "<% if x > 5 do %>big<% else %>small<% end %>"}
+          }
+        },
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "greaterThan", "value" => 0}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/scenarios/new")
+    view |> render_change("toggle-rule", %{"_target" => ["rule-#{a.id}"], "rule-#{a.id}" => a.id})
+    view |> render_click("add-fact")
+    view |> render_change("fact", %{"_target" => ["fact-0-name"], "fact-0-name" => "x"})
+    view |> render_change("fact", %{"_target" => ["fact-0-value"], "fact-0-value" => "10"})
+
+    # the control is present, and without it the control-flow template is blocked
+    assert has_element?(view, "#allow-unsafe")
+    render_click(view, "run")
+    assert has_element?(view, "#run-error")
+
+    # with the toggle, the same rule runs and renders the template
+    view
+    |> render_change("allow-unsafe", %{"_target" => ["allow_unsafe"], "allow_unsafe" => "true"})
+
+    render_click(view, "run")
+    assert has_element?(view, "#run-result")
+    assert render(view) =~ "big"
+  end
 end

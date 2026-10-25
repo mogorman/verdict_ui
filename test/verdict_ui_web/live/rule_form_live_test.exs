@@ -124,6 +124,47 @@ defmodule VerdictUIWeb.RuleFormLiveTest do
     assert render(view) =~ "hi &lt;%= x %&gt;"
   end
 
+  test "edit: saves a changed event type and event param", %{conn: conn} do
+    {:ok, rule} =
+      VerdictUI.create_rule(%{
+        name: "u",
+        event: %{"type" => "verdict", "params" => %{"msg" => "small"}},
+        conditions: %{"all" => [%{"fact" => "fouls", "operator" => "greaterThan", "value" => 5}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/rules/#{rule.id}/edit")
+    view |> render_change("param", %{"_target" => ["param-0-value"], "param-0-value" => "big"})
+
+    view
+    |> form("#rule-form", %{rule: %{name: "u", priority: 1, event_type: "fouledOut"}})
+    |> render_submit()
+
+    updated = VerdictUI.get_rule(rule.id)
+    assert updated.event.type == "fouledOut"
+    assert updated.event.params == %{"msg" => "big"}
+  end
+
+  test "edit: adding a new event param persists it", %{conn: conn} do
+    {:ok, rule} =
+      VerdictUI.create_rule(%{
+        name: "u",
+        event: %{"type" => "verdict", "params" => %{"msg" => "small"}},
+        conditions: %{"all" => [%{"fact" => "fouls", "operator" => "greaterThan", "value" => 5}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/rules/#{rule.id}/edit")
+    view |> render_click("add-param")
+    view |> render_change("param", %{"_target" => ["param-1-name"], "param-1-name" => "count"})
+    view |> render_change("param", %{"_target" => ["param-1-value"], "param-1-value" => "3"})
+
+    view
+    |> form("#rule-form", %{rule: %{name: "u", priority: 1, event_type: "verdict"}})
+    |> render_submit()
+
+    updated = VerdictUI.get_rule(rule.id)
+    assert updated.event.params == %{"msg" => "small", "count" => 3}
+  end
+
   test "blocks saving an ill-formed eex template", %{conn: conn} do
     {:ok, view, _} = live(conn, ~p"/rules/new")
 

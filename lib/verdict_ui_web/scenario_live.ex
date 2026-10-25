@@ -23,7 +23,8 @@ defmodule VerdictUIWeb.ScenarioLive do
            result: nil,
            error: nil,
            changeset: nil,
-           allow_unsafe: false
+           allow_unsafe: false,
+           allow_undefined_facts: false
          )}
 
       id ->
@@ -40,7 +41,8 @@ defmodule VerdictUIWeb.ScenarioLive do
                result: nil,
                error: nil,
                changeset: nil,
-               allow_unsafe: scenario.allow_unsafe || false
+               allow_unsafe: scenario.allow_unsafe || false,
+               allow_undefined_facts: scenario.allow_undefined_facts || false
              )}
 
           _ ->
@@ -144,6 +146,28 @@ defmodule VerdictUIWeb.ScenarioLive do
             </span>
           </label>
 
+          <label
+            id="allow-undefined-facts"
+            for="scenario-allow-undefined-facts"
+            class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+          >
+            <input
+              id="scenario-allow-undefined-facts"
+              type="checkbox"
+              name="allow_undefined_facts"
+              phx-change="allow-undefined-facts"
+              checked={@allow_undefined_facts}
+              class="checkbox mt-0.5 shrink-0"
+            />
+            <span>
+              <span class="font-medium text-zinc-200">Allow undefined facts</span>
+              <span class="block text-xs text-zinc-500">
+                Facts referenced by a rule but not provided evaluate as nil instead of
+                erroring.
+              </span>
+            </span>
+          </label>
+
           <div class="flex gap-2 pt-1">
             <button type="button" id="save-btn" phx-click="save" class="btn btn-primary btn-sm">
               Save
@@ -242,7 +266,8 @@ defmodule VerdictUIWeb.ScenarioLive do
       name: socket.assigns.name,
       facts: facts_map(socket.assigns.facts),
       rule_ids: socket.assigns.selected_ids,
-      allow_unsafe: socket.assigns.allow_unsafe
+      allow_unsafe: socket.assigns.allow_unsafe,
+      allow_undefined_facts: socket.assigns.allow_undefined_facts
     }
 
     result =
@@ -270,12 +295,18 @@ defmodule VerdictUIWeb.ScenarioLive do
   end
 
   @impl true
+  def handle_event("allow-undefined-facts", params, socket) do
+    checked = Map.has_key?(params, "allow_undefined_facts")
+    {:noreply, assign(socket, allow_undefined_facts: checked, result: nil)}
+  end
+
+  @impl true
   def handle_event("run", _params, socket) do
     rules =
       socket.assigns.rules
       |> Enum.filter(&(&1.id in MapSet.new(socket.assigns.selected_ids)))
 
-    opts = if socket.assigns.allow_unsafe, do: [allow_unsafe_eex: true], else: []
+    opts = VerdictUI.run_opts(socket.assigns.allow_unsafe, socket.assigns.allow_undefined_facts)
 
     case VerdictUI.run_rules(rules, facts_map(socket.assigns.facts), opts) do
       {:ok, result} -> {:noreply, assign(socket, result: result, error: nil)}

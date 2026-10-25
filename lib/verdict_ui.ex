@@ -93,21 +93,32 @@ defmodule VerdictUI do
   `Verdict.RunResult.to_map/1` shape) or `{:error, message}`.
   """
   def run_scenario(%Scenario{} = scenario) do
-    opts = if scenario.allow_unsafe, do: [allow_unsafe_eex: true], else: []
+    opts = run_opts(scenario.allow_unsafe, scenario.allow_undefined_facts)
     run_rules(scenario_rules(scenario), scenario.facts, opts)
+  end
+
+  @doc """
+  Builds the engine keyword options from the two boolean run toggles: an
+  `:allow_unsafe_eex` entry when `allow_unsafe` is on and an
+  `:allow_undefined_facts` entry when `allow_undefined_facts` is on.
+  """
+  def run_opts(allow_unsafe, allow_undefined_facts) do
+    unsafe = if allow_unsafe, do: [allow_unsafe_eex: true], else: []
+    undefined = if allow_undefined_facts, do: [allow_undefined_facts: true], else: []
+    unsafe ++ undefined
   end
 
   @doc """
   Runs `rules` together against the engine with `facts` (a `name => value` map).
 
-  `opts` may include `:allow_unsafe_eex` (a boolean) to permit EEx control-flow
-  templates in event params; when omitted the engine's application-config
-  fallback applies. Returns `{:ok, result_map}` or `{:error, message}`.
+  `opts` are forwarded to `Verdict.Engine.new/1` (e.g. `:allow_unsafe_eex`,
+  `:allow_undefined_facts`); options omitted fall back to the engine defaults.
+  Returns `{:ok, result_map}` or `{:error, message}`.
   """
   def run_rules(rules, facts, opts \\ []) when is_list(rules) and is_map(facts) do
     try do
       engine =
-        Enum.reduce(rules, Engine.new(unsafe_eex_opt(opts)), fn rule, eng ->
+        Enum.reduce(rules, Engine.new(opts), fn rule, eng ->
           {:ok, eng, _} = Engine.add_rule(eng, Rule.to_engine_attrs(rule))
           eng
         end)
@@ -117,8 +128,4 @@ defmodule VerdictUI do
       e -> {:error, Exception.message(e)}
     end
   end
-
-  # Only forwards `:allow_unsafe_eex` when the caller set it, so omitting the
-  # option preserves the engine's `config :verdict, :allow_unsafe_eex` fallback.
-  defp unsafe_eex_opt(opts), do: Keyword.take(opts, [:allow_unsafe_eex])
 end

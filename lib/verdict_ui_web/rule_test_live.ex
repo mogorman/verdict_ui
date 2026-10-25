@@ -21,7 +21,8 @@ defmodule VerdictUIWeb.RuleTestLive do
            facts: facts,
            result: nil,
            error: nil,
-           allow_unsafe: false
+           allow_unsafe: false,
+           allow_undefined_facts: false
          )}
 
       _ ->
@@ -61,6 +62,15 @@ defmodule VerdictUIWeb.RuleTestLive do
                 phx-change="allow-unsafe"
                 class="checkbox checkbox-sm"
               /> Allow unsafe EEx templates
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-zinc-400">
+              <input
+                type="checkbox"
+                name="allow_undefined_facts"
+                phx-change="allow-undefined-facts"
+                class="checkbox checkbox-sm"
+              /> Allow undefined facts
             </label>
 
             <div class="pt-2">
@@ -134,13 +144,19 @@ defmodule VerdictUIWeb.RuleTestLive do
   end
 
   @impl true
+  def handle_event("allow-undefined-facts", params, socket) do
+    checked = Map.has_key?(params, "allow_undefined_facts")
+    {:noreply, assign(socket, allow_undefined_facts: checked, result: nil, error: nil)}
+  end
+
+  @impl true
   def handle_event("run", _params, socket) do
     facts =
       socket.assigns.facts
       |> Enum.reject(&(&1["name"] in [nil, ""]))
       |> Map.new(&{&1["name"], ConditionTree.parse_value(&1["value"])})
 
-    opts = if socket.assigns.allow_unsafe, do: [allow_unsafe_eex: true], else: []
+    opts = VerdictUI.run_opts(socket.assigns.allow_unsafe, socket.assigns.allow_undefined_facts)
 
     case VerdictUI.run_rules([socket.assigns.rule], facts, opts) do
       {:ok, result} -> {:noreply, assign(socket, result: result, error: nil)}

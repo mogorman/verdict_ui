@@ -80,6 +80,30 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
     refute render(view) =~ "success-e"
   end
 
+  test "allow_undefined_facts runs a rule that references an unprovided fact", %{conn: conn} do
+    {:ok, rule} =
+      VerdictUI.create_rule(%{
+        name: "udef",
+        event: %{"type" => "e"},
+        conditions: %{"all" => [%{"fact" => "missing", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/scenarios/new")
+    view |> element("#scenario-name") |> render_change(%{"scenario[name]" => "ud"})
+
+    view
+    |> render_change("toggle-rule", %{
+      "_target" => ["rule-#{rule.id}"],
+      "rule-#{rule.id}" => rule.id
+    })
+
+    view |> render_change("allow-undefined-facts", %{"allow_undefined_facts" => "true"})
+    render_click(view, "run")
+
+    # "missing" is not provided; with the toggle on it evaluates as nil instead of erroring
+    assert has_element?(view, "#run-result")
+  end
+
   test "loads a saved scenario and re-runs it", %{conn: conn} do
     {:ok, a} = VerdictUI.create_rule(@rule_a)
 

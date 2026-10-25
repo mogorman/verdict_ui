@@ -255,4 +255,92 @@ defmodule VerdictUIWeb.RuleFormLiveTest do
     assert has_element?(view, "#template-errors")
     assert VerdictUI.list_rules() == []
   end
+
+  test "picks a JSONPath into a sample fact and sets the leaf path", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+
+    view |> render_click("add-sfact")
+    view |> render_change("sfact", %{"_target" => ["sfact-0-name"], "sfact-0-name" => "player"})
+
+    view
+    |> render_change(
+      "sfact",
+      %{"_target" => ["sfact-0-value"], "sfact-0-value" => "{\"team\":{\"name\":\"a\"}}"}
+    )
+
+    view |> element("button", "+ condition") |> render_click()
+    view |> element("input[name=cond-0-fact]") |> render_change(%{"cond-0-fact" => "player"})
+
+    view |> element("button", "pick path") |> render_click()
+    assert has_element?(view, "#jsonpath-picker")
+    # the picker lists each node with its EEx equivalent for events
+    assert render(view) =~ "facts[&quot;player&quot;][&quot;team&quot;][&quot;name&quot;]"
+
+    view |> element("button", "$.team.name") |> render_click()
+    assert has_element?(view, ~s(input[name="cond-0-path"][value="$.team.name"]))
+    # the live preview resolves the path against the sample using the engine's resolver
+    assert render(view) =~ "→ a"
+  end
+
+  test "persists sample facts and the picked path on save", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+
+    view |> render_click("add-sfact")
+    view |> render_change("sfact", %{"_target" => ["sfact-0-name"], "sfact-0-name" => "player"})
+
+    view
+    |> render_change(
+      "sfact",
+      %{"_target" => ["sfact-0-value"], "sfact-0-value" => "{\"team\":{\"name\":\"a\"}}"}
+    )
+
+    view |> element("button", "+ condition") |> render_click()
+    view |> element("input[name=cond-0-fact]") |> render_change(%{"cond-0-fact" => "player"})
+    view |> element("input[name=cond-0-value]") |> render_change(%{"cond-0-value" => "\"a\""})
+    view |> element("button", "pick path") |> render_click()
+    view |> element("button", "$.team.name") |> render_click()
+
+    view
+    |> form("#rule-form", %{rule: %{name: "team-rule", priority: 1, event_type: "e"}})
+    |> render_submit()
+
+    [rule] = VerdictUI.list_rules()
+    assert rule.sample_facts == %{"player" => %{"team" => %{"name" => "a"}}}
+    leaf = hd(rule.conditions["all"])
+    assert leaf["fact"] == "player"
+    assert leaf["path"] == "$.team.name"
+    assert leaf["value"] == "a"
+  end
+
+  test "edit form loads sample facts and a leaf path", %{conn: conn} do
+    {:ok, rule} =
+      VerdictUI.create_rule(%{
+        name: "team",
+        priority: 1,
+        event: %{"type" => "e"},
+        conditions: %{
+          "all" => [
+            %{"fact" => "player", "operator" => "equal", "value" => "a", "path" => "$.team.name"}
+          ]
+        },
+        sample_facts: %{"player" => %{"team" => %{"name" => "a"}}}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/rules/#{rule.id}/edit")
+    assert has_element?(view, ~s(input[name="cond-0-path"][value="$.team.name"]))
+    assert has_element?(view, ~s(input[name="sfact-0-name"][value="player"]))
+  end
+
+  test "edit form shows no sample rows for a rule without samples", %{conn: conn} do
+    {:ok, rule} =
+      VerdictUI.create_rule(%{
+        name: "plain",
+        priority: 1,
+        event: %{"type" => "e"},
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/rules/#{rule.id}/edit")
+    refute has_element?(view, "input[name=sfact-0-name]")
+  end
 end

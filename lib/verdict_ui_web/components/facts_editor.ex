@@ -61,6 +61,7 @@ defmodule VerdictUIWeb.Components.FactsEditor do
       </select>
 
       <input
+        id={"#{@prefix}-#{i}-value"}
         name={"#{@prefix}-#{i}-value"}
         type="text"
         value={row["value"]}
@@ -68,6 +69,8 @@ defmodule VerdictUIWeb.Components.FactsEditor do
         class="flex-1 min-w-0 input input-sm"
         phx-change={@change_event}
         phx-debounce="200"
+        phx-hook=".JsonHint"
+        data-jsonhint={if(row["template"], do: "false", else: "true")}
       />
 
       <button
@@ -80,6 +83,33 @@ defmodule VerdictUIWeb.Components.FactsEditor do
         ×
       </button>
     </div>
+
+    <script :type={Phoenix.LiveView.ColocatedHook} name=".JsonHint">
+      export default {
+        mounted() {
+          const el = this.el;
+          const update = () => {
+            if (el.dataset.jsonhint !== "true") {
+              el.style.borderColor = "";
+              return;
+            }
+            const v = el.value.trim();
+            if (v === "") {
+              el.style.borderColor = "";
+              return;
+            }
+            let ok = false;
+            try {
+              JSON.parse(v);
+              ok = true;
+            } catch (_) {}
+            el.style.borderColor = ok ? "#22c55e" : "#ef4444";
+          };
+          el.addEventListener("input", update);
+          update();
+        }
+      }
+    </script>
     """
   end
 

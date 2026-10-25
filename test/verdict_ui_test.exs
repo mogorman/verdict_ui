@@ -91,6 +91,23 @@ defmodule VerdictUITest do
     assert event.type == "fouledOut"
   end
 
+  test "create_rule/1 persists sample_facts and to_engine_attrs/1 omits them" do
+    attrs =
+      @rule_attrs
+      |> Map.put(:name, "with-samples")
+      |> Map.put(:sample_facts, %{"player" => %{"team" => %{"name" => "a"}}})
+
+    {:ok, rule} = VerdictUI.create_rule(attrs)
+    stored = VerdictUI.get_rule(rule.id)
+    assert stored.sample_facts == %{"player" => %{"team" => %{"name" => "a"}}}
+    assert "sample_facts" not in Map.keys(Rule.to_engine_attrs(stored))
+  end
+
+  test "create_rule/1 defaults sample_facts to an empty map" do
+    {:ok, rule} = VerdictUI.create_rule(@rule_attrs)
+    assert VerdictUI.get_rule(rule.id).sample_facts == %{}
+  end
+
   @scenario_rule_a %{
     name: "sa",
     priority: 2,
@@ -208,5 +225,36 @@ defmodule VerdictUITest do
     assert scenario.schedule == "parallel"
     assert scenario.parallel_concurrency == 4
     assert scenario.log_level == "debug"
+  end
+
+  test "run_rules/3 orders results by priority desc, then name asc" do
+    {:ok, zeta} =
+      VerdictUI.create_rule(%{
+        name: "zeta",
+        priority: 1,
+        event: %{"type" => "e"},
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, mid} =
+      VerdictUI.create_rule(%{
+        name: "mid",
+        priority: 2,
+        event: %{"type" => "e"},
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, alpha} =
+      VerdictUI.create_rule(%{
+        name: "alpha",
+        priority: 1,
+        event: %{"type" => "e"},
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, result} = VerdictUI.run_rules([zeta, mid, alpha], %{"x" => 1}, [])
+    names = Enum.map(result["results"], & &1["name"])
+
+    assert names == ["mid", "alpha", "zeta"]
   end
 end

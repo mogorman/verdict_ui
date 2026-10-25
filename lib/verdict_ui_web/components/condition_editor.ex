@@ -22,6 +22,7 @@ defmodule VerdictUIWeb.Components.ConditionEditor do
   attr :node, :map, required: true
   attr :path, :string, required: true
   attr :operators, :list, required: true
+  attr :previews, :map, default: %{}
 
   def node_editor(assigns) do
     kind = ConditionTree.kind_of(assigns.node)
@@ -94,7 +95,12 @@ defmodule VerdictUIWeb.Components.ConditionEditor do
           No conditions yet — add one above.
         </p>
         <div :for={{child, i} <- Enum.with_index(@children)}>
-          <.node_editor node={child} path={child_path(@path, i)} operators={@operators} />
+          <.node_editor
+            node={child}
+            path={child_path(@path, i)}
+            operators={@operators}
+            previews={@previews}
+          />
         </div>
       </div>
 
@@ -104,6 +110,7 @@ defmodule VerdictUIWeb.Components.ConditionEditor do
           node={child}
           path={child_path(@path, 0)}
           operators={@operators}
+          previews={@previews}
         />
       </div>
 
@@ -113,6 +120,7 @@ defmodule VerdictUIWeb.Components.ConditionEditor do
           name={ConditionTree.field_name(@path, "fact")}
           value={@node["fact"]}
           placeholder="fact (e.g. score)"
+          list="fact-names"
           phx-change="cond:field"
           phx-debounce="300"
           class="font-mono text-sm"
@@ -133,6 +141,31 @@ defmodule VerdictUIWeb.Components.ConditionEditor do
           phx-debounce="300"
           class="font-mono text-sm"
         />
+      </div>
+
+      <div :if={@kind == :leaf} class="mt-2 flex flex-wrap items-center gap-2">
+        <.input
+          type="text"
+          name={ConditionTree.field_name(@path, "path")}
+          value={@node["path"] || ""}
+          placeholder="path (JSONPath into the fact, e.g. $.team.name)"
+          phx-change="cond:field"
+          phx-debounce="300"
+          class="w-full max-w-xs font-mono text-sm sm:w-80"
+        />
+
+        <button
+          type="button"
+          class="btn btn-ghost btn-xs"
+          phx-click="pick-path"
+          value={val(%{"path" => @path, "fact" => @node["fact"]})}
+        >
+          pick path
+        </button>
+
+        <span :if={Map.has_key?(@previews, @path)} class="text-xs text-base-content/60">
+          → {format_preview(Map.get(@previews, @path))}
+        </span>
       </div>
 
       <div :if={@kind == :ref} class="mt-3">
@@ -156,6 +189,10 @@ defmodule VerdictUIWeb.Components.ConditionEditor do
   # phx-click `value` attributes must be HTML-safe, so the payload is a JSON
   # string; the client forwards it and the LiveView decodes it (see `payload/1`).
   defp val(map), do: Jason.encode!(map)
+
+  defp format_preview(nil), do: "∅"
+  defp format_preview(value) when is_binary(value), do: value
+  defp format_preview(value), do: Jason.encode!(value)
 
   defp operator_options(current, operators) do
     opts = Enum.map(operators, &{&1, &1})

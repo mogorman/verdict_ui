@@ -6,9 +6,10 @@ defmodule VerdictUIWeb.RuleFormLive do
   """
   use VerdictUIWeb, :live_view
 
+  alias Verdict.Evaluation
   alias VerdictUI
   alias VerdictUI.ConditionTree
-  alias VerdictUIWeb.Components.{ConditionEditor, FactsEditor}
+  alias VerdictUIWeb.Components.{ConditionEditor, FactsEditor, JsonPathPicker}
 
   @operators Verdict.Operators.known()
   @eex_types Enum.map(Verdict.Template.marker_types(), &to_string/1)
@@ -50,6 +51,8 @@ defmodule VerdictUIWeb.RuleFormLive do
       failure_event_type: "",
       failure_param_rows: [],
       conditions: %{"all" => []},
+      sample_rows: [],
+      picker: nil,
       changeset: nil,
       template_errors: []
     )
@@ -69,6 +72,8 @@ defmodule VerdictUIWeb.RuleFormLive do
       failure_event_type: failure_event && failure_event.type,
       failure_param_rows: params_to_rows((failure_event && failure_event.params) || %{}),
       conditions: conditions_to_map(rule.conditions),
+      sample_rows: sample_facts_to_rows(rule.sample_facts),
+      picker: nil,
       changeset: nil,
       template_errors: []
     )
@@ -107,6 +112,62 @@ defmodule VerdictUIWeb.RuleFormLive do
     value = if field == "value", do: ConditionTree.parse_value(raw), else: raw
     tree = ConditionTree.update_node(socket.assigns.conditions, path, %{field => value})
     {:noreply, assign(socket, conditions: tree)}
+  end
+
+  def handle_event("pick-path", params, socket) do
+    %{"path" => path, "fact" => fact} = payload(params)
+    {:noreply, assign(socket, picker: %{"path" => path, "fact" => fact})}
+  end
+
+  def handle_event("pick-node", %{"value" => jsonpath}, socket) do
+    tree =
+      ConditionTree.update_node(
+        socket.assigns.conditions,
+        ConditionTree.parse_path(socket.assigns.picker["path"]),
+        %{"path" => jsonpath}
+      )
+
+    {:noreply, assign(socket, conditions: tree, picker: nil)}
+  end
+
+  def handle_event("picker-paste", %{"sample" => raw}, socket) do
+    if String.trim(raw || "") == "" do
+      {:noreply, socket}
+    else
+      fact = socket.assigns.picker["fact"]
+
+      {:noreply,
+       assign(socket, sample_rows: upsert_sample_row(socket.assigns.sample_rows, fact, raw))}
+    end
+  end
+
+  def handle_event("close-picker", _params, socket), do: {:noreply, assign(socket, picker: nil)}
+
+  def handle_event("add-sfact", _params, socket) do
+    {:noreply, assign(socket, sample_rows: socket.assigns.sample_rows ++ [blank_sample_row()])}
+  end
+
+  def handle_event("remove-sfact", %{"value" => idx}, socket) do
+    i = String.to_integer(idx)
+
+    {:noreply,
+     assign(socket, sample_rows: List.delete_at(socket.assigns.sample_rows, i), picker: nil)}
+  end
+
+  def handle_event("sfact", params, socket) do
+    name = changed_field(params)
+    rows = socket.assigns.sample_rows
+
+    case String.split(name, "-") do
+      ["sfact", idx, field] when field in ["name", "value"] ->
+        value = Map.get(params, name)
+        i = String.to_integer(idx)
+        rows = List.replace_at(rows, i, Map.put(Enum.at(rows, i), field, value))
+        {:noreply, assign(socket, sample_rows: rows, picker: nil)}
+
+      _ ->
+        {:noreply, socket}
+    end
   end
 
   # Keeps the name/priority/event assigns in sync with the scalar inputs so the
@@ -182,7 +243,8 @@ defmodule VerdictUIWeb.RuleFormLive do
         priority: rule["priority"],
         event: %{type: rule["event_type"], params: params},
         failure_event: failure_event_attrs(rule["failure_event_type"], failure_params),
-        conditions: socket.assigns.conditions
+        conditions: socket.assigns.conditions,
+        sample_facts: sample_facts_map(socket.assigns.sample_rows)
       }
 
       case socket.assigns.mode do
@@ -328,8 +390,82 @@ defmodule VerdictUIWeb.RuleFormLive do
   defp conditions_to_map(map) when is_map(map), do: map
   defp conditions_to_map(_), do: %{"all" => []}
 
+  # --- sample facts + JSONPath previews ----------------------------------------
+
+  defp blank_sample_row(), do: %{"name" => "", "value" => ""}
+
+  defp sample_facts_map(rows) do
+    rows
+    |> Enum.reject(&(&1["name"] in [nil, ""]))
+    |> Enum.map(&{&1["name"], ConditionTree.parse_value(&1["value"])})
+    |> Map.new()
+  end
+
+  defp sample_facts_to_rows(facts) do
+    (facts || %{})
+    |> Enum.map(fn {name, value} ->
+      %{"name" => to_string(name), "value" => ConditionTree.value_to_input(value)}
+    end)
+  end
+
+  defp upsert_sample_row(rows, fact, raw) do
+    row = %{"name" => fact, "value" => raw}
+
+    case Enum.find_index(rows, &(&1["name"] == fact)) do
+      nil -> rows ++ [row]
+      i -> List.replace_at(rows, i, row)
+    end
+  end
+
+  defp fact_names(sample_map, conditions) do
+    (Map.keys(sample_map) ++ ConditionTree.fact_names(conditions))
+    |> Enum.uniq()
+    |> Enum.sort()
+  end
+
+  # A `{leaf path string => resolved value}` map for every leaf that has both a
+  # `path` and a sample fact, so the editor can show a live preview resolved by
+  # the engine itself.
+  defp leaf_previews(conditions, sample_map), do: walk_previews(conditions, "", sample_map)
+
+  defp walk_previews(node, path, sample_map) do
+    case ConditionTree.kind_of(node) do
+      :leaf ->
+        if is_binary(node["path"]) and node["path"] != "" and is_binary(node["fact"]) do
+          case Map.fetch(sample_map, node["fact"]) do
+            {:ok, sample} -> %{path => Evaluation.resolve_path(sample, node["path"])}
+            :error -> %{}
+          end
+        else
+          %{}
+        end
+
+      kind when kind in [:all, :any, :not] ->
+        node
+        |> ConditionTree.children_of()
+        |> Enum.with_index()
+        |> Enum.reduce(%{}, fn {child, i}, acc ->
+          Map.merge(acc, walk_previews(child, child_preview_path(path, i), sample_map))
+        end)
+
+      _ ->
+        %{}
+    end
+  end
+
+  defp child_preview_path("", i), do: "#{i}"
+  defp child_preview_path(path, i), do: "#{path}.#{i}"
+
   @impl true
   def render(assigns) do
+    sample_map = sample_facts_map(assigns.sample_rows)
+
+    assigns =
+      assigns
+      |> assign(:sample_map, sample_map)
+      |> assign(:path_previews, leaf_previews(assigns.conditions, sample_map))
+      |> assign(:fact_names, fact_names(sample_map, assigns.conditions))
+
     ~H"""
     <Layouts.app flash={@flash}>
       <.header>
@@ -440,8 +576,47 @@ defmodule VerdictUIWeb.RuleFormLive do
         </div>
 
         <div>
+          <div class="mb-1 flex items-center justify-between">
+            <p class="label mb-0">Sample facts</p>
+            <button type="button" phx-click="add-sfact" class="btn btn-ghost btn-xs">
+              + sample
+            </button>
+          </div>
+
+          <FactsEditor.facts_editor
+            rows={@sample_rows}
+            prefix="sfact"
+            remove_event="remove-sfact"
+            change_event="sfact"
+            key_placeholder="fact name"
+            value_placeholder="sample JSON (e.g. an object)"
+          />
+
+          <p :if={@sample_rows == []} class="mt-1 text-xs text-base-content/50">
+            Optional. Paste a sample JSON value for a fact so you can pick JSONPaths into it
+            from the conditions below.
+          </p>
+        </div>
+
+        <div>
           <p class="label mb-1">Conditions</p>
-          <ConditionEditor.node_editor node={@conditions} path="" operators={@operators} />
+
+          <datalist id="fact-names">
+            <option :for={name <- @fact_names} value={name} />
+          </datalist>
+
+          <ConditionEditor.node_editor
+            node={@conditions}
+            path=""
+            operators={@operators}
+            previews={@path_previews}
+          />
+
+          <JsonPathPicker.picker
+            :if={@picker}
+            fact={@picker["fact"]}
+            sample={Map.get(@sample_map, @picker["fact"])}
+          />
         </div>
 
         <details class="group">

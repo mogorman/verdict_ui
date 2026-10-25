@@ -25,6 +25,7 @@ defmodule VerdictUI.Rule do
     embeds_one(:event, Event)
     embeds_one(:failure_event, Event)
     field(:conditions, Types.Condition)
+    field(:sample_facts, :map, default: %{})
     timestamps()
   end
 
@@ -36,6 +37,7 @@ defmodule VerdictUI.Rule do
           event: Event.t() | nil,
           failure_event: Event.t() | nil,
           conditions: Condition.t() | map(),
+          sample_facts: map(),
           inserted_at: NaiveDateTime.t() | nil,
           updated_at: NaiveDateTime.t() | nil
         }
@@ -65,7 +67,8 @@ defmodule VerdictUI.Rule do
       extra: rule.extra,
       event: rule.event,
       failure_event: rule.failure_event,
-      conditions: rule.conditions
+      conditions: rule.conditions,
+      sample_facts: rule.sample_facts
     }
   end
 

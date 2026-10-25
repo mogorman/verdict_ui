@@ -11,10 +11,14 @@ defmodule VerdictUIWeb.RuleFormLive do
   alias VerdictUIWeb.Components.{ConditionEditor, FactsEditor}
 
   @operators Verdict.Operators.known()
+  @eex_types Enum.map(Verdict.Template.marker_types(), &to_string/1)
 
   @impl true
   def mount(params, _session, socket) do
-    socket = assign(socket, :operators, @operators)
+    socket =
+      socket
+      |> assign(:operators, @operators)
+      |> assign(:eex_types, @eex_types)
 
     case params do
       %{"id" => id} ->
@@ -130,7 +134,8 @@ defmodule VerdictUIWeb.RuleFormLive do
      assign(
        socket,
        param_rows:
-         socket.assigns.param_rows ++ [%{"name" => "", "value" => "", "template" => false}]
+         socket.assigns.param_rows ++
+           [%{"name" => "", "value" => "", "template" => false, "type" => "string"}]
      )}
   end
 
@@ -217,16 +222,17 @@ defmodule VerdictUIWeb.RuleFormLive do
 
   defp params_to_rows(params) do
     Enum.map(params, fn {name, value} ->
-      case eex_template(value) do
+      case eex_marker(value) do
         nil ->
           %{
             "name" => to_string(name),
             "value" => ConditionTree.value_to_input(value),
-            "template" => false
+            "template" => false,
+            "type" => "string"
           }
 
-        template ->
-          %{"name" => to_string(name), "value" => template, "template" => true}
+        {type, template} ->
+          %{"name" => to_string(name), "value" => template, "template" => true, "type" => type}
       end
     end)
   end
@@ -238,17 +244,26 @@ defmodule VerdictUIWeb.RuleFormLive do
     |> Map.new()
   end
 
-  # A template row keeps its value as a raw EEx string; a plain row parses JSON.
+  # A template row keeps its value as a raw EEx string, tagged with the selected
+  # `eex_<type>` marker; a plain row parses JSON.
   defp param_value(row) do
     if row["template"],
-      do: %{"eex_string" => row["value"]},
+      do: %{"eex_#{row["type"]}" => row["value"]},
       else: ConditionTree.parse_value(row["value"])
   end
 
-  # A value shaped `%{eex_string: "…"}` (atom or string key) is an EEx template.
-  defp eex_template(%{eex_string: template}) when is_binary(template), do: template
-  defp eex_template(%{"eex_string" => template}) when is_binary(template), do: template
-  defp eex_template(_), do: nil
+  # A single-key map with a binary value named `eex_<type>` is a typed EEx marker;
+  # returns `{type, template}`, or `nil` for a non-marker value.
+  defp eex_marker(%{} = map) when map_size(map) == 1 do
+    [{key, value}] = Map.to_list(map)
+
+    if is_binary(value) do
+      type = to_string(key) |> String.replace_prefix("eex_", "")
+      if type in @eex_types, do: {type, value}
+    end
+  end
+
+  defp eex_marker(_), do: nil
 
   # Decodes a phx-click `value` payload (a JSON string, or an already-decoded
   # map) into a string-keyed map.
@@ -341,6 +356,7 @@ defmodule VerdictUIWeb.RuleFormLive do
             key_placeholder="param key"
             value_placeholder="value (JSON)"
             template_toggle
+            template_types={@eex_types}
           />
 
           <p :if={@param_rows == []} class="mt-1 text-xs text-base-content/50">

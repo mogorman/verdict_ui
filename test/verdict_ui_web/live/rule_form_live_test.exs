@@ -121,7 +121,43 @@ defmodule VerdictUIWeb.RuleFormLiveTest do
 
     {:ok, view, _} = live(conn, ~p"/rules/#{rule.id}/edit")
     assert has_element?(view, "input[name=param-0-template][checked]")
+    assert has_element?(view, ~s(select[name="param-0-type"] option[value="string"][selected]))
     assert render(view) =~ "hi &lt;%= x %&gt;"
+  end
+
+  test "saves a typed eex_integer template param", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+
+    view |> render_click("add-param")
+    view |> render_change("param", %{"_target" => ["param-0-name"], "param-0-name" => "count"})
+
+    view
+    |> render_change("param", %{"_target" => ["param-0-value"], "param-0-value" => "<%= count %>"})
+
+    view
+    |> render_change("param", %{"_target" => ["param-0-template"], "param-0-template" => "true"})
+
+    view |> render_change("param", %{"_target" => ["param-0-type"], "param-0-type" => "integer"})
+
+    view
+    |> form("#rule-form", %{rule: %{name: "t", priority: 1, event_type: "e"}})
+    |> render_submit()
+
+    [rule] = VerdictUI.list_rules()
+    assert rule.event.params == %{"count" => %{"eex_integer" => "<%= count %>"}}
+  end
+
+  test "edit form loads a typed marker with the select set", %{conn: conn} do
+    {:ok, rule} =
+      VerdictUI.create_rule(%{
+        name: "n",
+        event: %{"type" => "e", "params" => %{"count" => %{"eex_integer" => "<%= count %>"}}},
+        conditions: %{"all" => [%{"fact" => "count", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/rules/#{rule.id}/edit")
+    assert has_element?(view, "input[name=param-0-template][checked]")
+    assert has_element?(view, ~s(select[name="param-0-type"] option[value="integer"][selected]))
   end
 
   test "edit: saves a changed event type and event param", %{conn: conn} do

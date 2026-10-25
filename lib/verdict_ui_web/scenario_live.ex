@@ -70,6 +70,13 @@ defmodule VerdictUIWeb.ScenarioLive do
 
       <div class="grid gap-6 lg:grid-cols-2">
         <div class="space-y-5 rounded-lg border border-zinc-800 p-4">
+          <div class="flex gap-2">
+            <button type="button" id="save-btn" phx-click="save" class="btn btn-primary btn-sm">
+              Save
+            </button>
+            <button type="button" id="run-btn" phx-click="run" class="btn btn-sm">Run</button>
+          </div>
+
           <form id="scenario-form" class="space-y-5">
             <div>
               <label class="label mb-1" for="scenario-name">Name</label>
@@ -126,56 +133,49 @@ defmodule VerdictUIWeb.ScenarioLive do
           </div>
 
           <form id="scenario-options" class="space-y-2">
-          <label
-            id="allow-unsafe"
-            for="scenario-allow-unsafe"
-            class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
-          >
-            <input
-              id="scenario-allow-unsafe"
-              type="checkbox"
-              name="allow_unsafe"
-              phx-change="allow-unsafe"
-              checked={@allow_unsafe}
-              class="checkbox mt-0.5 shrink-0"
-            />
-            <span>
-              <span class="font-medium text-zinc-200">Allow unsafe EEx templates</span>
-              <span class="block text-xs text-zinc-500">
-                Enables control-flow templates (if / for / cond) in event params.
+            <label
+              id="allow-unsafe"
+              for="scenario-allow-unsafe"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+            >
+              <input
+                id="scenario-allow-unsafe"
+                type="checkbox"
+                name="allow_unsafe"
+                phx-change="allow-unsafe"
+                checked={@allow_unsafe}
+                class="checkbox mt-0.5 shrink-0"
+              />
+              <span>
+                <span class="font-medium text-zinc-200">Allow unsafe EEx templates</span>
+                <span class="block text-xs text-zinc-500">
+                  Enables control-flow templates (if / for / cond) in event params.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
 
-          <label
-            id="allow-undefined-facts"
-            for="scenario-allow-undefined-facts"
-            class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
-          >
-            <input
-              id="scenario-allow-undefined-facts"
-              type="checkbox"
-              name="allow_undefined_facts"
-              phx-change="allow-undefined-facts"
-              checked={@allow_undefined_facts}
-              class="checkbox mt-0.5 shrink-0"
-            />
-            <span>
-              <span class="font-medium text-zinc-200">Allow undefined facts</span>
-              <span class="block text-xs text-zinc-500">
-                Facts referenced by a rule but not provided evaluate as nil instead of
-                erroring.
+            <label
+              id="allow-undefined-facts"
+              for="scenario-allow-undefined-facts"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+            >
+              <input
+                id="scenario-allow-undefined-facts"
+                type="checkbox"
+                name="allow_undefined_facts"
+                phx-change="allow-undefined-facts"
+                checked={@allow_undefined_facts}
+                class="checkbox mt-0.5 shrink-0"
+              />
+              <span>
+                <span class="font-medium text-zinc-200">Allow undefined facts</span>
+                <span class="block text-xs text-zinc-500">
+                  Facts referenced by a rule but not provided evaluate as nil instead of
+                  erroring.
+                </span>
               </span>
-            </span>
-          </label>
+            </label>
           </form>
-
-          <div class="flex gap-2 pt-1">
-            <button type="button" id="save-btn" phx-click="save" class="btn btn-primary btn-sm">
-              Save
-            </button>
-            <button type="button" id="run-btn" phx-click="run" class="btn btn-sm">Run</button>
-          </div>
         </div>
 
         <div class="rounded-lg border border-zinc-800 p-4">
@@ -187,6 +187,19 @@ defmodule VerdictUIWeb.ScenarioLive do
 
           <div :if={@result} id="run-result">
             <ResultsList.results_list results={@result["results"]} />
+
+            <details class="mt-3">
+              <summary class="cursor-pointer select-none text-sm text-zinc-400 hover:text-zinc-200">
+                Raw JSON
+              </summary>
+
+              <pre
+                id="run-raw-json"
+                class="mt-2 overflow-x-auto rounded-md bg-zinc-900/60 p-3 text-xs font-mono text-zinc-300"
+              >
+                {Jason.encode!(@result, pretty: true)}
+              </pre>
+            </details>
           </div>
 
           <div :if={!@result && !@error} class="text-sm text-zinc-500">

@@ -14,7 +14,7 @@ defmodule VerdictUIWeb.Components.ResultsList do
 
   def results_list(assigns) do
     ~H"""
-    <div class="space-y-3">
+    <div id="results" class="space-y-3">
       <div :for={r <- @results} class="rounded-lg border border-base-300 p-3">
         <div class="mb-2 flex items-center justify-between gap-2">
           <span class="font-semibold">{r["name"]}</span>

@@ -76,8 +76,9 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
 
     # x=9 != 1 so the rule does not fire: its failure event is shown, not the success event
     assert render(view) =~ ">failure event<"
-    assert render(view) =~ "fail-e"
-    refute render(view) =~ "success-e"
+    assert has_element?(view, "#results", "fail-e")
+    refute has_element?(view, "#results", "success-e")
+    assert has_element?(view, "#run-raw-json")
   end
 
   test "allow_undefined_facts runs a rule that references an unprovided fact", %{conn: conn} do

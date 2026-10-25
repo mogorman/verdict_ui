@@ -104,6 +104,27 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
     assert has_element?(view, "#run-result")
   end
 
+  test "saves allow_undefined_facts on a new scenario", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/scenarios/new")
+    view |> element("#scenario-name") |> render_change(%{"scenario[name]" => "save-ud"})
+    view |> render_change("allow-undefined-facts", %{"allow_undefined_facts" => "true"})
+    render_click(view, "save")
+
+    scenario = Enum.find(VerdictUI.list_scenarios(), &(&1.name == "save-ud"))
+    assert scenario.allow_undefined_facts == true
+  end
+
+  test "saves allow_undefined_facts when toggled in edit mode", %{conn: conn} do
+    {:ok, scenario} = VerdictUI.create_scenario(%{name: "edit-ud"})
+    refute scenario.allow_undefined_facts
+
+    {:ok, view, _} = live(conn, ~p"/scenarios/#{scenario.id}")
+    view |> render_change("allow-undefined-facts", %{"allow_undefined_facts" => "true"})
+    render_click(view, "save")
+
+    assert VerdictUI.get_scenario(scenario.id).allow_undefined_facts == true
+  end
+
   test "loads a saved scenario and re-runs it", %{conn: conn} do
     {:ok, a} = VerdictUI.create_rule(@rule_a)
 

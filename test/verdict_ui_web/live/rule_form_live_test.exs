@@ -201,6 +201,41 @@ defmodule VerdictUIWeb.RuleFormLiveTest do
     assert updated.event.params == %{"msg" => "small", "count" => 3}
   end
 
+  test "creates a rule with a distinct failure event", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/rules/new")
+
+    view |> element("button", "+ condition") |> render_click()
+    view |> element("input[name=cond-0-fact]") |> render_change(%{"cond-0-fact" => "fouls"})
+    view |> element("input[name=cond-0-value]") |> render_change(%{"cond-0-value" => "5"})
+
+    view |> render_click("add-fparam")
+
+    view
+    |> render_change("fparam", %{"_target" => ["fparam-0-name"], "fparam-0-name" => "reason"})
+
+    view
+    |> render_change("fparam", %{
+      "_target" => ["fparam-0-value"],
+      "fparam-0-value" => "not fouled"
+    })
+
+    view
+    |> form("#rule-form", %{
+      rule: %{
+        name: "foul",
+        priority: 1,
+        event_type: "fouledOut",
+        failure_event_type: "notifyFoul"
+      }
+    })
+    |> render_submit()
+
+    [rule] = VerdictUI.list_rules()
+    assert rule.event.type == "fouledOut"
+    assert rule.failure_event.type == "notifyFoul"
+    assert rule.failure_event.params == %{"reason" => "not fouled"}
+  end
+
   test "blocks saving an ill-formed eex template", %{conn: conn} do
     {:ok, view, _} = live(conn, ~p"/rules/new")
 

@@ -39,12 +39,45 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
     assert has_element?(view, "#run-result .badge-success")
     # ra: x == 1
     assert has_element?(view, "#run-result .badge-error")
+    # only the fired rule shows its event; the not-fired rule shows none
+    assert render(view) =~ ">event<"
+    refute render(view) =~ ">failure event<"
 
     render_click(view, "save")
     scenario = Enum.find(VerdictUI.list_scenarios(), &(&1.name == "reg"))
     assert scenario != nil
     assert MapSet.equal?(MapSet.new(scenario.rule_ids), MapSet.new([a.id, b.id]))
     assert scenario.facts == %{"x" => 10}
+  end
+
+  test "shows a failed rule's failure event (not its success event) in the results", %{conn: conn} do
+    {:ok, rule} =
+      VerdictUI.create_rule(%{
+        name: "fr",
+        event: %{"type" => "success-e"},
+        failure_event: %{"type" => "fail-e"},
+        conditions: %{"all" => [%{"fact" => "x", "operator" => "equal", "value" => 1}]}
+      })
+
+    {:ok, view, _} = live(conn, ~p"/scenarios/new")
+    view |> element("#scenario-name") |> render_change(%{"scenario[name]" => "fs"})
+
+    view
+    |> render_change("toggle-rule", %{
+      "_target" => ["rule-#{rule.id}"],
+      "rule-#{rule.id}" => rule.id
+    })
+
+    view |> render_click("add-fact")
+    view |> render_change("fact", %{"_target" => ["fact-0-name"], "fact-0-name" => "x"})
+    view |> render_change("fact", %{"_target" => ["fact-0-value"], "fact-0-value" => "9"})
+
+    render_click(view, "run")
+
+    # x=9 != 1 so the rule does not fire: its failure event is shown, not the success event
+    assert render(view) =~ ">failure event<"
+    assert render(view) =~ "fail-e"
+    refute render(view) =~ "success-e"
   end
 
   test "loads a saved scenario and re-runs it", %{conn: conn} do

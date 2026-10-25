@@ -4,8 +4,9 @@ defmodule VerdictUIWeb.Components.ResultsList do
 
   Takes `results` — the `result["results"]` list, each a map with `name`,
   `result` (did it fire), and `conditions` (the per-leaf report). Renders one
-  block per rule: a fired / not-fired badge plus the evaluated leaves
-  (expected vs actual) and any short-circuited leaves.
+   block per rule: a fired / not-fired badge, its event — the success event for
+   fired rules, the declared failure event for rules that did not fire — plus
+   the evaluated leaves (expected vs actual) and any short-circuited leaves.
   """
   use VerdictUIWeb, :html
 
@@ -23,9 +24,14 @@ defmodule VerdictUIWeb.Components.ResultsList do
           </span>
         </div>
 
-        <div :if={event = r["event"]} class="mb-2 flex flex-wrap items-center gap-x-2 text-sm">
-          <span class="opacity-60">event</span>
-          <span class="font-mono text-primary">{event["type"]}</span>
+        <div
+          :if={event = if r["result"], do: r["event"], else: r["failure_event"]}
+          class="mb-2 flex flex-wrap items-center gap-x-2 text-sm"
+        >
+          <span class="opacity-60">{if r["result"], do: "event", else: "failure event"}</span>
+          <span class={if r["result"], do: "font-mono text-primary", else: "font-mono text-error"}>
+            {event["type"]}
+          </span>
           <span :if={params = event["params"]} class="font-mono text-xs opacity-80">
             {Jason.encode!(params)}
           </span>

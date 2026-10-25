@@ -23,6 +23,7 @@ defmodule VerdictUI.Rule do
     field(:priority, :integer, default: 1)
     field(:extra, :map, default: %{})
     embeds_one(:event, Event)
+    embeds_one(:failure_event, Event)
     field(:conditions, Types.Condition)
     timestamps()
   end
@@ -33,6 +34,7 @@ defmodule VerdictUI.Rule do
           priority: integer(),
           extra: map(),
           event: Event.t() | nil,
+          failure_event: Event.t() | nil,
           conditions: Condition.t() | map(),
           inserted_at: NaiveDateTime.t() | nil,
           updated_at: NaiveDateTime.t() | nil
@@ -62,6 +64,7 @@ defmodule VerdictUI.Rule do
       priority: rule.priority,
       extra: rule.extra,
       event: rule.event,
+      failure_event: rule.failure_event,
       conditions: rule.conditions
     }
   end
@@ -97,6 +100,7 @@ defmodule VerdictUI.Rule do
         priority: priority,
         extra: extra,
         event: %Event{} = event,
+        failure_event: failure_event,
         conditions: conditions
       }) do
     %{
@@ -104,6 +108,7 @@ defmodule VerdictUI.Rule do
       "priority" => priority,
       "extra" => extra,
       "event" => Event.to_map(event),
+      "failure_event" => failure_event && Event.to_map(failure_event),
       "conditions" => conditions_map(conditions)
     }
   end

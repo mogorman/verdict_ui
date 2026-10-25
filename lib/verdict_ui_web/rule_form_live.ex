@@ -47,6 +47,8 @@ defmodule VerdictUIWeb.RuleFormLive do
       priority: 1,
       event_type: "",
       param_rows: [],
+      failure_event_type: "",
+      failure_param_rows: [],
       conditions: %{"all" => []},
       changeset: nil,
       template_errors: []
@@ -55,6 +57,7 @@ defmodule VerdictUIWeb.RuleFormLive do
 
   defp assign_for_rule(socket, rule) do
     event = rule.event
+    failure_event = rule.failure_event
 
     assign(socket,
       mode: :edit,
@@ -63,6 +66,8 @@ defmodule VerdictUIWeb.RuleFormLive do
       priority: rule.priority || 1,
       event_type: event && event.type,
       param_rows: params_to_rows((event && event.params) || %{}),
+      failure_event_type: failure_event && failure_event.type,
+      failure_param_rows: params_to_rows((failure_event && failure_event.params) || %{}),
       conditions: conditions_to_map(rule.conditions),
       changeset: nil,
       template_errors: []
@@ -125,74 +130,106 @@ defmodule VerdictUIWeb.RuleFormLive do
      assign(socket,
        name: Map.get(rule, "name", socket.assigns.name),
        event_type: Map.get(rule, "event_type", socket.assigns.event_type),
+       failure_event_type: Map.get(rule, "failure_event_type", socket.assigns.failure_event_type),
        priority: priority
      )}
   end
 
-  def handle_event("add-param", _params, socket) do
-    {:noreply,
-     assign(
-       socket,
-       param_rows:
-         socket.assigns.param_rows ++
-           [%{"name" => "", "value" => "", "template" => false, "type" => "string"}]
-     )}
-  end
+  def handle_event("add-param", _params, socket),
+    do: {:noreply, assign(socket, param_rows: socket.assigns.param_rows ++ [blank_param_row()])}
+
+  def handle_event("add-fparam", _params, socket),
+    do:
+      {:noreply,
+       assign(socket,
+         failure_param_rows: socket.assigns.failure_param_rows ++ [blank_param_row()]
+       )}
 
   def handle_event("remove-param", %{"value" => idx}, socket) do
     i = String.to_integer(idx)
     {:noreply, assign(socket, param_rows: List.delete_at(socket.assigns.param_rows, i))}
   end
 
-  def handle_event("param", params, socket) do
-    name = changed_field(params)
+  def handle_event("remove-fparam", %{"value" => idx}, socket) do
+    i = String.to_integer(idx)
 
-    case String.split(name, "-") do
-      ["param", idx, "template"] ->
-        i = String.to_integer(idx)
-        row = Enum.at(socket.assigns.param_rows, i)
-        checked = Map.has_key?(params, name)
-
-        {:noreply,
-         assign(socket,
-           param_rows:
-             List.replace_at(socket.assigns.param_rows, i, Map.put(row, "template", checked))
-         )}
-
-      ["param", idx, field] ->
-        value = Map.get(params, name)
-        i = String.to_integer(idx)
-        row = Enum.at(socket.assigns.param_rows, i)
-
-        {:noreply,
-         assign(socket,
-           param_rows: List.replace_at(socket.assigns.param_rows, i, Map.put(row, field, value))
-         )}
-
-      _ ->
-        {:noreply, socket}
-    end
+    {:noreply,
+     assign(socket, failure_param_rows: List.delete_at(socket.assigns.failure_param_rows, i))}
   end
+
+  def handle_event("param", params, socket),
+    do: param_change(socket, params, "param", :param_rows)
+
+  def handle_event("fparam", params, socket),
+    do: param_change(socket, params, "fparam", :failure_param_rows)
 
   def handle_event("save", %{"rule" => rule}, socket) do
     params = params_map(socket.assigns.param_rows)
+    failure_params = params_map(socket.assigns.failure_param_rows)
 
-    case Verdict.Template.validate(params) do
-      :ok ->
-        attrs = %{
-          name: rule["name"],
-          priority: rule["priority"],
-          event: %{type: rule["event_type"], params: params},
-          conditions: socket.assigns.conditions
-        }
-
-        case socket.assigns.mode do
-          :new -> save(:new, attrs, socket)
-          :edit -> save(:edit, attrs, socket)
+    template_errors =
+      [params, failure_params]
+      |> Enum.flat_map(fn p ->
+        case Verdict.Template.validate(p) do
+          :ok -> []
+          {:error, messages} -> messages
         end
+      end)
 
-      {:error, messages} ->
-        {:noreply, assign(socket, template_errors: messages, changeset: nil)}
+    if template_errors == [] do
+      attrs = %{
+        name: rule["name"],
+        priority: rule["priority"],
+        event: %{type: rule["event_type"], params: params},
+        failure_event: failure_event_attrs(rule["failure_event_type"], failure_params),
+        conditions: socket.assigns.conditions
+      }
+
+      case socket.assigns.mode do
+        :new -> save(:new, attrs, socket)
+        :edit -> save(:edit, attrs, socket)
+      end
+    else
+      {:noreply, assign(socket, template_errors: template_errors, changeset: nil)}
+    end
+  end
+
+  # A failure event is only sent when a type is given; an empty type omits it so
+  # the rule keeps (or has) no failure event.
+  defp failure_event_attrs(nil, _params), do: nil
+  defp failure_event_attrs("", _params), do: nil
+  defp failure_event_attrs(type, params), do: %{type: type, params: params}
+
+  defp blank_param_row(),
+    do: %{"name" => "", "value" => "", "template" => false, "type" => "string"}
+
+  defp param_change(socket, params, prefix, rows_field) do
+    name = changed_field(params)
+    rows = Map.get(socket.assigns, rows_field)
+
+    case String.split(name, "-") do
+      [^prefix, idx, "template"] ->
+        i = String.to_integer(idx)
+        row = Enum.at(rows, i)
+        checked = Map.has_key?(params, name)
+
+        {:noreply,
+         assign(
+           socket,
+           rows_field,
+           List.replace_at(rows, i, Map.put(row, "template", checked))
+         )}
+
+      [^prefix, idx, field] ->
+        value = Map.get(params, name)
+        i = String.to_integer(idx)
+        row = Enum.at(rows, i)
+
+        {:noreply,
+         assign(socket, rows_field, List.replace_at(rows, i, Map.put(row, field, value)))}
+
+      _ ->
+        {:noreply, socket}
     end
   end
 
@@ -369,6 +406,39 @@ defmodule VerdictUIWeb.RuleFormLive do
           </p>
         </div>
 
+        <.input
+          name="rule[failure_event_type]"
+          type="text"
+          label="Failure event type"
+          value={@failure_event_type}
+          placeholder="e.g. notifyFouledOut (optional)"
+          phx-change="scalar"
+        />
+
+        <div>
+          <div class="mb-1 flex items-center justify-between">
+            <p class="label mb-0">Failure event params</p>
+            <button type="button" phx-click="add-fparam" class="btn btn-ghost btn-xs">
+              + param
+            </button>
+          </div>
+
+          <FactsEditor.facts_editor
+            rows={@failure_param_rows}
+            prefix="fparam"
+            remove_event="remove-fparam"
+            change_event="fparam"
+            key_placeholder="param key"
+            value_placeholder="value (JSON)"
+            template_toggle
+            template_types={@eex_types}
+          />
+
+          <p :if={@failure_param_rows == []} class="mt-1 text-xs text-base-content/50">
+            Optional. Emitted only when the rule does not fire.
+          </p>
+        </div>
+
         <div>
           <p class="label mb-1">Conditions</p>
           <ConditionEditor.node_editor node={@conditions} path="" operators={@operators} />
@@ -379,7 +449,7 @@ defmodule VerdictUIWeb.RuleFormLive do
             JSON preview
           </summary>
           <pre class="mt-2 overflow-auto rounded-md bg-base-200 p-3 text-xs">
-            <code phx-no-curly-interpolation><%= preview_json(@name, @priority, @event_type, params_map(@param_rows), @conditions) %></code>
+            <code phx-no-curly-interpolation><%= preview_json(@name, @priority, @event_type, params_map(@param_rows), @failure_event_type, params_map(@failure_param_rows), @conditions) %></code>
           </pre>
         </details>
 
@@ -391,12 +461,34 @@ defmodule VerdictUIWeb.RuleFormLive do
     """
   end
 
-  defp preview_json(name, priority, event_type, params, conditions) do
+  defp preview_json(
+         name,
+         priority,
+         event_type,
+         params,
+         failure_event_type,
+         failure_params,
+         conditions
+       ) do
     event = %{"type" => event_type}
     event = if params == %{}, do: event, else: Map.put(event, "params", params)
 
     base = %{"name" => name, "priority" => priority, "event" => event, "conditions" => conditions}
     base = if priority in [nil, 1], do: Map.delete(base, "priority"), else: base
+
+    base =
+      if failure_event = build_event_map(failure_event_type, failure_params),
+        do: Map.put(base, "failure_event", failure_event),
+        else: base
+
     Jason.encode!(base, pretty: true)
+  end
+
+  defp build_event_map(nil, _params), do: nil
+  defp build_event_map("", _params), do: nil
+
+  defp build_event_map(type, params) do
+    event = %{"type" => type}
+    if params == %{}, do: event, else: Map.put(event, "params", params)
   end
 end

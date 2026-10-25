@@ -158,4 +158,55 @@ defmodule VerdictUITest do
     assert [only] = result["results"]
     assert only["name"] == "kept"
   end
+
+  test "run_opts/1 emits only non-default engine options" do
+    assert VerdictUI.run_opts(%{}) == []
+    assert VerdictUI.run_opts(%{allow_unsafe: false, allow_undefined_facts: false}) == []
+    assert VerdictUI.run_opts(%{report: "full", schedule: "serial", log_level: nil}) == []
+
+    opts =
+      VerdictUI.run_opts(%{
+        allow_unsafe: true,
+        allow_undefined_facts: true,
+        allow_undefined_conditions: true,
+        strict: true,
+        replace_facts_in_event_params: true,
+        report: "failures_only",
+        schedule: "parallel",
+        parallel_concurrency: 4,
+        log_level: "debug"
+      })
+
+    assert Keyword.get(opts, :allow_unsafe_eex) == true
+    assert Keyword.get(opts, :allow_undefined_facts) == true
+    assert Keyword.get(opts, :allow_undefined_conditions) == true
+    assert Keyword.get(opts, :strict) == true
+    assert Keyword.get(opts, :replace_facts_in_event_params) == true
+    assert Keyword.get(opts, :report) == :failures_only
+    assert Keyword.get(opts, :schedule) == :parallel
+    assert Keyword.get(opts, :parallel_concurrency) == 4
+    assert Keyword.get(opts, :log) == :debug
+  end
+
+  test "create_scenario/1 persists engine options" do
+    {:ok, scenario} =
+      VerdictUI.create_scenario(%{
+        name: "reg",
+        allow_undefined_conditions: true,
+        strict: true,
+        replace_facts_in_event_params: true,
+        report: "failures_only",
+        schedule: "parallel",
+        parallel_concurrency: 4,
+        log_level: "debug"
+      })
+
+    assert scenario.allow_undefined_conditions == true
+    assert scenario.strict == true
+    assert scenario.replace_facts_in_event_params == true
+    assert scenario.report == "failures_only"
+    assert scenario.schedule == "parallel"
+    assert scenario.parallel_concurrency == 4
+    assert scenario.log_level == "debug"
+  end
 end

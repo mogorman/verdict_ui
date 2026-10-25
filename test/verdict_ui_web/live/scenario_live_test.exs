@@ -50,6 +50,34 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
     assert scenario.facts == %{"x" => 10}
   end
 
+  test "saves engine options chosen in the form", %{conn: conn} do
+    {:ok, view, _} = live(conn, ~p"/scenarios/new")
+
+    view |> element("#scenario-name") |> render_change(%{"scenario[name]" => "opts"})
+
+    view |> element("#scenario-strict") |> render_change(%{"strict" => "1"})
+    view |> element("#scenario-report") |> render_change(%{"report" => "failures_only"})
+
+    view
+    |> element("#scenario-schedule")
+    |> render_change(%{"schedule" => "parallel"})
+
+    view
+    |> element("#scenario-parallel-concurrency")
+    |> render_change(%{"parallel_concurrency" => "4"})
+
+    view |> element("#scenario-log-level") |> render_change(%{"log_level" => "debug"})
+
+    render_click(view, "save")
+
+    scenario = Enum.find(VerdictUI.list_scenarios(), &(&1.name == "opts"))
+    assert scenario.strict == true
+    assert scenario.report == "failures_only"
+    assert scenario.schedule == "parallel"
+    assert scenario.parallel_concurrency == 4
+    assert scenario.log_level == "debug"
+  end
+
   test "shows a failed rule's failure event (not its success event) in the results", %{conn: conn} do
     {:ok, rule} =
       VerdictUI.create_rule(%{

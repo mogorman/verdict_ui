@@ -22,7 +22,14 @@ defmodule VerdictUIWeb.RuleTestLive do
            result: nil,
            error: nil,
            allow_unsafe: false,
-           allow_undefined_facts: false
+           allow_undefined_facts: false,
+           allow_undefined_conditions: false,
+           strict: false,
+           replace_facts_in_event_params: false,
+           report: "full",
+           schedule: "serial",
+           parallel_concurrency: nil,
+           log_level: nil
          )}
 
       _ ->
@@ -72,6 +79,81 @@ defmodule VerdictUIWeb.RuleTestLive do
                 class="checkbox checkbox-sm"
               /> Allow undefined facts
             </label>
+
+            <label class="flex items-center gap-2 text-sm text-zinc-400">
+              <input
+                type="checkbox"
+                name="allow_undefined_conditions"
+                phx-change="allow-undefined-conditions"
+                checked={@allow_undefined_conditions}
+                class="checkbox checkbox-sm"
+              /> Allow undefined conditions
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-zinc-400">
+              <input
+                type="checkbox"
+                name="strict"
+                phx-change="strict"
+                checked={@strict}
+                class="checkbox checkbox-sm"
+              /> Strict (evaluate all conditions)
+            </label>
+
+            <label class="flex items-center gap-2 text-sm text-zinc-400">
+              <input
+                type="checkbox"
+                name="replace_facts_in_event_params"
+                phx-change="replace-facts-in-event-params"
+                checked={@replace_facts_in_event_params}
+                class="checkbox checkbox-sm"
+              /> Replace facts in event params
+            </label>
+
+            <div class="grid grid-cols-2 gap-2 pt-1 text-sm text-zinc-400">
+              <label class="flex flex-col gap-1">
+                Report
+                <select name="report" phx-change="report" class="select select-xs">
+                  <option value="full" selected={@report == "full"}>Full</option>
+                  <option value="failures_only" selected={@report == "failures_only"}>
+                    Failures
+                  </option>
+                  <option value="result_only" selected={@report == "result_only"}>Result</option>
+                </select>
+              </label>
+
+              <label class="flex flex-col gap-1">
+                Schedule
+                <select name="schedule" phx-change="schedule" class="select select-xs">
+                  <option value="serial" selected={@schedule == "serial"}>Serial</option>
+                  <option value="parallel" selected={@schedule == "parallel"}>Parallel</option>
+                </select>
+              </label>
+
+              <label class="flex flex-col gap-1">
+                Concurrency
+                <input
+                  name="parallel_concurrency"
+                  type="number"
+                  min="1"
+                  value={@parallel_concurrency || ""}
+                  placeholder="auto"
+                  phx-change="parallel-concurrency"
+                  class="input input-xs"
+                />
+              </label>
+
+              <label class="flex flex-col gap-1">
+                Log
+                <select name="log_level" phx-change="log-level" class="select select-xs">
+                  <option value="" selected={@log_level in [nil, ""]}>Off</option>
+                  <option value="debug" selected={@log_level == "debug"}>debug</option>
+                  <option value="info" selected={@log_level == "info"}>info</option>
+                  <option value="warning" selected={@log_level == "warning"}>warning</option>
+                  <option value="error" selected={@log_level == "error"}>error</option>
+                </select>
+              </label>
+            </div>
 
             <div class="pt-2">
               <button type="submit" id="run-btn" class="btn btn-primary btn-sm">Run</button>
@@ -150,17 +232,76 @@ defmodule VerdictUIWeb.RuleTestLive do
   end
 
   @impl true
+  def handle_event("allow-undefined-conditions", params, socket) do
+    checked = Map.has_key?(params, "allow_undefined_conditions")
+    {:noreply, assign(socket, allow_undefined_conditions: checked, result: nil, error: nil)}
+  end
+
+  @impl true
+  def handle_event("strict", params, socket) do
+    checked = Map.has_key?(params, "strict")
+    {:noreply, assign(socket, strict: checked, result: nil, error: nil)}
+  end
+
+  @impl true
+  def handle_event("replace-facts-in-event-params", params, socket) do
+    checked = Map.has_key?(params, "replace_facts_in_event_params")
+    {:noreply, assign(socket, replace_facts_in_event_params: checked, result: nil, error: nil)}
+  end
+
+  @impl true
+  def handle_event("report", %{"report" => report}, socket) do
+    {:noreply, assign(socket, report: report, result: nil, error: nil)}
+  end
+
+  @impl true
+  def handle_event("schedule", %{"schedule" => schedule}, socket) do
+    {:noreply, assign(socket, schedule: schedule, result: nil, error: nil)}
+  end
+
+  @impl true
+  def handle_event("parallel-concurrency", %{"parallel_concurrency" => raw}, socket) do
+    concurrency =
+      case Integer.parse(raw || "") do
+        {n, _} -> n
+        :error -> nil
+      end
+
+    {:noreply, assign(socket, parallel_concurrency: concurrency, result: nil, error: nil)}
+  end
+
+  @impl true
+  def handle_event("log-level", %{"log_level" => level}, socket) do
+    log_level = if level in [nil, ""], do: nil, else: level
+    {:noreply, assign(socket, log_level: log_level, result: nil, error: nil)}
+  end
+
+  @impl true
   def handle_event("run", _params, socket) do
     facts =
       socket.assigns.facts
       |> Enum.reject(&(&1["name"] in [nil, ""]))
       |> Map.new(&{&1["name"], ConditionTree.parse_value(&1["value"])})
 
-    opts = VerdictUI.run_opts(socket.assigns.allow_unsafe, socket.assigns.allow_undefined_facts)
+    opts = VerdictUI.run_opts(assign_opts(socket))
 
     case VerdictUI.run_rules([socket.assigns.rule], facts, opts) do
       {:ok, result} -> {:noreply, assign(socket, result: result, error: nil)}
       {:error, msg} -> {:noreply, assign(socket, result: nil, error: msg)}
     end
+  end
+
+  defp assign_opts(socket) do
+    %{
+      allow_unsafe: socket.assigns.allow_unsafe,
+      allow_undefined_facts: socket.assigns.allow_undefined_facts,
+      allow_undefined_conditions: socket.assigns.allow_undefined_conditions,
+      strict: socket.assigns.strict,
+      replace_facts_in_event_params: socket.assigns.replace_facts_in_event_params,
+      report: socket.assigns.report,
+      schedule: socket.assigns.schedule,
+      parallel_concurrency: socket.assigns.parallel_concurrency,
+      log_level: socket.assigns.log_level
+    }
   end
 end

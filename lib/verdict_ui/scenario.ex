@@ -15,13 +15,36 @@ defmodule VerdictUI.Scenario do
     field(:rule_ids, {:array, :binary_id}, default: [])
     field(:allow_unsafe, :boolean, default: false)
     field(:allow_undefined_facts, :boolean, default: false)
+    field(:allow_undefined_conditions, :boolean, default: false)
+    field(:strict, :boolean, default: false)
+    field(:replace_facts_in_event_params, :boolean, default: false)
+    field(:report, :string, default: "full")
+    field(:schedule, :string, default: "serial")
+    field(:parallel_concurrency, :integer)
+    field(:log_level, :string)
     timestamps()
   end
 
   @doc "An insert or update changeset. Only `name` is required."
   def changeset(%__MODULE__{} = scenario, attrs) do
     scenario
-    |> cast(attrs, [:name, :facts, :rule_ids, :allow_unsafe, :allow_undefined_facts])
+    |> cast(
+      attrs,
+      [
+        :name,
+        :facts,
+        :rule_ids,
+        :allow_unsafe,
+        :allow_undefined_facts,
+        :allow_undefined_conditions,
+        :strict,
+        :replace_facts_in_event_params,
+        :report,
+        :schedule,
+        :parallel_concurrency,
+        :log_level
+      ]
+    )
     |> validate_required([:name])
   end
 end

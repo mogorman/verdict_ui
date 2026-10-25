@@ -11,6 +11,16 @@ defmodule VerdictUI do
   alias Verdict.{Engine, RunResult}
   alias VerdictUI.{Rule, Scenario}
 
+  # Explicit string -> atom maps for the enum-ish engine options, so we never
+  # call String.to_atom/1 on form input.
+  @report_values %{
+    "full" => :full,
+    "result_only" => :result_only,
+    "failures_only" => :failures_only
+  }
+  @schedule_values %{"serial" => :serial, "parallel" => :parallel}
+  @log_values %{"debug" => :debug, "info" => :info, "warning" => :warning, "error" => :error}
+
   @doc "The repo this context uses (configurable for embedding)."
   def repo, do: Application.get_env(:verdict_ui, :repo, VerdictUI.Repo)
 
@@ -93,26 +103,48 @@ defmodule VerdictUI do
   `Verdict.RunResult.to_map/1` shape) or `{:error, message}`.
   """
   def run_scenario(%Scenario{} = scenario) do
-    opts = run_opts(scenario.allow_unsafe, scenario.allow_undefined_facts)
-    run_rules(scenario_rules(scenario), scenario.facts, opts)
+    run_rules(scenario_rules(scenario), scenario.facts, run_opts(scenario_to_opts(scenario)))
   end
 
   @doc """
-  Builds the engine keyword options from the two boolean run toggles: an
-  `:allow_unsafe_eex` entry when `allow_unsafe` is on and an
-  `:allow_undefined_facts` entry when `allow_undefined_facts` is on.
+  Builds the engine keyword options from a map of run-option values.
+
+  Only non-default values are emitted, so omitted options fall back to the
+  engine defaults (and `:allow_unsafe_eex` to the application config). Accepts a
+  map keyed by: `allow_unsafe`, `allow_undefined_facts`,
+  `allow_undefined_conditions`, `strict`, `replace_facts_in_event_params`,
+  `report`, `schedule`, `parallel_concurrency`, `log_level`.
   """
-  def run_opts(allow_unsafe, allow_undefined_facts) do
-    unsafe = if allow_unsafe, do: [allow_unsafe_eex: true], else: []
-    undefined = if allow_undefined_facts, do: [allow_undefined_facts: true], else: []
-    unsafe ++ undefined
+  def run_opts(opts) do
+    opts = Map.new(opts)
+    report = report_atom(opts[:report])
+    schedule = schedule_atom(opts[:schedule])
+    log = log_atom(opts[:log_level])
+    pc = opts[:parallel_concurrency]
+
+    [
+      if(opts[:allow_unsafe], do: [allow_unsafe_eex: true], else: []),
+      if(opts[:allow_undefined_facts], do: [allow_undefined_facts: true], else: []),
+      if(opts[:allow_undefined_conditions], do: [allow_undefined_conditions: true], else: []),
+      if(opts[:strict], do: [strict: true], else: []),
+      if(opts[:replace_facts_in_event_params],
+        do: [replace_facts_in_event_params: true],
+        else: []
+      ),
+      if(report != :full, do: [report: report], else: []),
+      if(schedule != :serial, do: [schedule: schedule], else: []),
+      if(pc, do: [parallel_concurrency: pc], else: []),
+      if(log, do: [log: log], else: [])
+    ]
+    |> List.flatten()
   end
 
   @doc """
   Runs `rules` together against the engine with `facts` (a `name => value` map).
 
-  `opts` are forwarded to `Verdict.Engine.new/1` (e.g. `:allow_unsafe_eex`,
-  `:allow_undefined_facts`); options omitted fall back to the engine defaults.
+  `opts` are forwarded to both `Verdict.Engine.new/1` and `Verdict.Engine.run/3`
+  (the latter so run-time options like `:schedule` and `:parallel_concurrency`
+  take effect); options omitted fall back to the engine defaults.
   Returns `{:ok, result_map}` or `{:error, message}`.
   """
   def run_rules(rules, facts, opts \\ []) when is_list(rules) and is_map(facts) do
@@ -123,9 +155,33 @@ defmodule VerdictUI do
           eng
         end)
 
-      {:ok, RunResult.to_map(Engine.run(engine, facts))}
+      {:ok, RunResult.to_map(Engine.run(engine, facts, opts))}
     rescue
       e -> {:error, Exception.message(e)}
     end
   end
+
+  # Maps a saved scenario's option fields to the `run_opts/1` value map.
+  defp scenario_to_opts(%Scenario{} = s) do
+    %{
+      allow_unsafe: s.allow_unsafe,
+      allow_undefined_facts: s.allow_undefined_facts,
+      allow_undefined_conditions: s.allow_undefined_conditions,
+      strict: s.strict,
+      replace_facts_in_event_params: s.replace_facts_in_event_params,
+      report: s.report,
+      schedule: s.schedule,
+      parallel_concurrency: s.parallel_concurrency,
+      log_level: s.log_level
+    }
+  end
+
+  defp report_atom(nil), do: :full
+  defp report_atom(v), do: Map.get(@report_values, v, :full)
+
+  defp schedule_atom(nil), do: :serial
+  defp schedule_atom(v), do: Map.get(@schedule_values, v, :serial)
+
+  defp log_atom(nil), do: nil
+  defp log_atom(v), do: Map.get(@log_values, v)
 end

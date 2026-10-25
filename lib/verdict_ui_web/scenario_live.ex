@@ -24,7 +24,14 @@ defmodule VerdictUIWeb.ScenarioLive do
            error: nil,
            changeset: nil,
            allow_unsafe: false,
-           allow_undefined_facts: false
+           allow_undefined_facts: false,
+           allow_undefined_conditions: false,
+           strict: false,
+           replace_facts_in_event_params: false,
+           report: "full",
+           schedule: "serial",
+           parallel_concurrency: nil,
+           log_level: nil
          )}
 
       id ->
@@ -42,7 +49,14 @@ defmodule VerdictUIWeb.ScenarioLive do
                error: nil,
                changeset: nil,
                allow_unsafe: scenario.allow_unsafe || false,
-               allow_undefined_facts: scenario.allow_undefined_facts || false
+               allow_undefined_facts: scenario.allow_undefined_facts || false,
+               allow_undefined_conditions: scenario.allow_undefined_conditions || false,
+               strict: scenario.strict || false,
+               replace_facts_in_event_params: scenario.replace_facts_in_event_params || false,
+               report: scenario.report || "full",
+               schedule: scenario.schedule || "serial",
+               parallel_concurrency: scenario.parallel_concurrency,
+               log_level: scenario.log_level
              )}
 
           _ ->
@@ -175,6 +189,141 @@ defmodule VerdictUIWeb.ScenarioLive do
                 </span>
               </span>
             </label>
+
+            <label
+              id="allow-undefined-conditions"
+              for="scenario-allow-undefined-conditions"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+            >
+              <input
+                id="scenario-allow-undefined-conditions"
+                type="checkbox"
+                name="allow_undefined_conditions"
+                phx-change="allow-undefined-conditions"
+                checked={@allow_undefined_conditions}
+                class="checkbox mt-0.5 shrink-0"
+              />
+              <span>
+                <span class="font-medium text-zinc-200">Allow undefined conditions</span>
+                <span class="block text-xs text-zinc-500">
+                  A condition reference that was never registered evaluates as false
+                  instead of erroring.
+                </span>
+              </span>
+            </label>
+
+            <label
+              id="strict"
+              for="scenario-strict"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+            >
+              <input
+                id="scenario-strict"
+                type="checkbox"
+                name="strict"
+                phx-change="strict"
+                checked={@strict}
+                class="checkbox mt-0.5 shrink-0"
+              />
+              <span>
+                <span class="font-medium text-zinc-200">Strict evaluation</span>
+                <span class="block text-xs text-zinc-500">
+                  Evaluate every condition instead of short-circuiting on the first
+                  decisive leaf.
+                </span>
+              </span>
+            </label>
+
+            <label
+              id="replace-facts-in-event-params"
+              for="scenario-replace-facts"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+            >
+              <input
+                id="scenario-replace-facts"
+                type="checkbox"
+                name="replace_facts_in_event_params"
+                phx-change="replace-facts-in-event-params"
+                checked={@replace_facts_in_event_params}
+                class="checkbox mt-0.5 shrink-0"
+              />
+              <span>
+                <span class="font-medium text-zinc-200">Replace facts in event params</span>
+                <span class="block text-xs text-zinc-500">
+                  Resolve fact references in top-level event params to their computed
+                  values before the event is emitted.
+                </span>
+              </span>
+            </label>
+
+            <div class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm">
+              <label for="scenario-report" class="mb-1 block font-medium text-zinc-200">
+                Report detail
+              </label>
+              <select
+                id="scenario-report"
+                name="report"
+                phx-change="report"
+                class="select select-xs"
+              >
+                <option value="full" selected={@report == "full"}>Full</option>
+                <option value="failures_only" selected={@report == "failures_only"}>
+                  Failures only
+                </option>
+                <option value="result_only" selected={@report == "result_only"}>
+                  Result only
+                </option>
+              </select>
+            </div>
+
+            <div class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm">
+              <label for="scenario-schedule" class="mb-1 block font-medium text-zinc-200">
+                Schedule
+              </label>
+              <select
+                id="scenario-schedule"
+                name="schedule"
+                phx-change="schedule"
+                class="select select-xs"
+              >
+                <option value="serial" selected={@schedule == "serial"}>Serial</option>
+                <option value="parallel" selected={@schedule == "parallel"}>Parallel</option>
+              </select>
+            </div>
+
+            <div class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm">
+              <label for="scenario-parallel-concurrency" class="mb-1 block font-medium text-zinc-200">
+                Parallel concurrency
+              </label>
+              <input
+                id="scenario-parallel-concurrency"
+                name="parallel_concurrency"
+                type="number"
+                min="1"
+                value={@parallel_concurrency || ""}
+                placeholder="auto"
+                phx-change="parallel-concurrency"
+                class="input input-xs"
+              />
+            </div>
+
+            <div class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm">
+              <label for="scenario-log-level" class="mb-1 block font-medium text-zinc-200">
+                Log level
+              </label>
+              <select
+                id="scenario-log-level"
+                name="log_level"
+                phx-change="log-level"
+                class="select select-xs"
+              >
+                <option value="" selected={@log_level in [nil, ""]}>Off</option>
+                <option value="debug" selected={@log_level == "debug"}>debug</option>
+                <option value="info" selected={@log_level == "info"}>info</option>
+                <option value="warning" selected={@log_level == "warning"}>warning</option>
+                <option value="error" selected={@log_level == "error"}>error</option>
+              </select>
+            </div>
           </form>
         </div>
 
@@ -282,7 +431,14 @@ defmodule VerdictUIWeb.ScenarioLive do
       facts: facts_map(socket.assigns.facts),
       rule_ids: socket.assigns.selected_ids,
       allow_unsafe: socket.assigns.allow_unsafe,
-      allow_undefined_facts: socket.assigns.allow_undefined_facts
+      allow_undefined_facts: socket.assigns.allow_undefined_facts,
+      allow_undefined_conditions: socket.assigns.allow_undefined_conditions,
+      strict: socket.assigns.strict,
+      replace_facts_in_event_params: socket.assigns.replace_facts_in_event_params,
+      report: socket.assigns.report,
+      schedule: socket.assigns.schedule,
+      parallel_concurrency: socket.assigns.parallel_concurrency,
+      log_level: socket.assigns.log_level
     }
 
     result =
@@ -316,17 +472,76 @@ defmodule VerdictUIWeb.ScenarioLive do
   end
 
   @impl true
+  def handle_event("allow-undefined-conditions", params, socket) do
+    checked = Map.has_key?(params, "allow_undefined_conditions")
+    {:noreply, assign(socket, allow_undefined_conditions: checked, result: nil)}
+  end
+
+  @impl true
+  def handle_event("strict", params, socket) do
+    checked = Map.has_key?(params, "strict")
+    {:noreply, assign(socket, strict: checked, result: nil)}
+  end
+
+  @impl true
+  def handle_event("replace-facts-in-event-params", params, socket) do
+    checked = Map.has_key?(params, "replace_facts_in_event_params")
+    {:noreply, assign(socket, replace_facts_in_event_params: checked, result: nil)}
+  end
+
+  @impl true
+  def handle_event("report", %{"report" => report}, socket) do
+    {:noreply, assign(socket, report: report, result: nil)}
+  end
+
+  @impl true
+  def handle_event("schedule", %{"schedule" => schedule}, socket) do
+    {:noreply, assign(socket, schedule: schedule, result: nil)}
+  end
+
+  @impl true
+  def handle_event("parallel-concurrency", %{"parallel_concurrency" => raw}, socket) do
+    concurrency =
+      case Integer.parse(raw || "") do
+        {n, _} -> n
+        :error -> nil
+      end
+
+    {:noreply, assign(socket, parallel_concurrency: concurrency, result: nil)}
+  end
+
+  @impl true
+  def handle_event("log-level", %{"log_level" => level}, socket) do
+    log_level = if level in [nil, ""], do: nil, else: level
+    {:noreply, assign(socket, log_level: log_level, result: nil)}
+  end
+
+  @impl true
   def handle_event("run", _params, socket) do
     rules =
       socket.assigns.rules
       |> Enum.filter(&(&1.id in MapSet.new(socket.assigns.selected_ids)))
 
-    opts = VerdictUI.run_opts(socket.assigns.allow_unsafe, socket.assigns.allow_undefined_facts)
+    opts = VerdictUI.run_opts(assign_opts(socket))
 
     case VerdictUI.run_rules(rules, facts_map(socket.assigns.facts), opts) do
       {:ok, result} -> {:noreply, assign(socket, result: result, error: nil)}
       {:error, msg} -> {:noreply, assign(socket, result: nil, error: msg)}
     end
+  end
+
+  defp assign_opts(socket) do
+    %{
+      allow_unsafe: socket.assigns.allow_unsafe,
+      allow_undefined_facts: socket.assigns.allow_undefined_facts,
+      allow_undefined_conditions: socket.assigns.allow_undefined_conditions,
+      strict: socket.assigns.strict,
+      replace_facts_in_event_params: socket.assigns.replace_facts_in_event_params,
+      report: socket.assigns.report,
+      schedule: socket.assigns.schedule,
+      parallel_concurrency: socket.assigns.parallel_concurrency,
+      log_level: socket.assigns.log_level
+    }
   end
 
   defp facts_to_rows(facts) do

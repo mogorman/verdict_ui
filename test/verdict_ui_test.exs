@@ -33,6 +33,43 @@ defmodule VerdictUITest do
     assert %Rule{id: ^id} = VerdictUI.get_rule(id)
   end
 
+  test "to_json_map/1 → JSON → create_rule/1 round-trips a stored rule" do
+    attrs =
+      @rule_attrs
+      |> Map.put(:priority, 3)
+      |> Map.put(:sample_facts, %{"player" => %{"team" => "a"}})
+
+    {:ok, rule} = VerdictUI.create_rule(attrs)
+    stored = VerdictUI.get_rule(rule.id)
+
+    json = VerdictUI.Rule.to_json_map(stored) |> Jason.encode!()
+    {:ok, decoded} = Jason.decode(json)
+
+    {:ok, imported} = VerdictUI.create_rule(decoded)
+    reimported = VerdictUI.get_rule(imported.id)
+
+    assert reimported.name == "fouled-out"
+    assert reimported.priority == 3
+    assert reimported.event.type == "fouledOut"
+    assert reimported.event.params == %{"message" => "Player has fouled out!"}
+    assert reimported.sample_facts == %{"player" => %{"team" => "a"}}
+  end
+
+  test "export_href/1 is a base64 data URI encoding the rule JSON" do
+    {:ok, rule} = VerdictUI.create_rule(@rule_attrs)
+    stored = VerdictUI.get_rule(rule.id)
+    href = VerdictUI.Rule.export_href(stored)
+
+    prefix = "data:application/json;base64,"
+    assert String.starts_with?(href, prefix)
+
+    encoded = String.replace_prefix(href, prefix, "")
+    {:ok, json} = Base.decode64(encoded)
+    {:ok, map} = Jason.decode(json)
+    assert map["name"] == "fouled-out"
+    assert map["priority"] == 5
+  end
+
   test "create_rule/1 surfaces an event error" do
     attrs = %{event: %{"type" => nil}, conditions: @rule_attrs.conditions}
     {:error, changeset} = VerdictUI.create_rule(attrs)

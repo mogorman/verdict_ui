@@ -630,6 +630,14 @@ defmodule VerdictUIWeb.RuleFormLive do
 
         <div class="flex gap-2">
           <.button phx-disable-with="Saving…">Save rule</.button>
+          <a
+            :if={@mode == :edit}
+            href={VerdictUI.Rule.export_href(@rule)}
+            download={@rule.name <> ".json"}
+            class="btn btn-ghost"
+          >
+            Export JSON
+          </a>
         </div>
       </form>
     </Layouts.app>

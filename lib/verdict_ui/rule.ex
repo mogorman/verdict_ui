@@ -118,4 +118,36 @@ defmodule VerdictUI.Rule do
 
   defp conditions_map(%Condition{} = condition), do: Types.Condition.to_map(condition)
   defp conditions_map(map) when is_map(map), do: map
+
+  @doc """
+  The rule as a JSON-compatible map — the inverse of `changeset/2`, so encoding
+  this to JSON and feeding it back through `VerdictUI.create_rule/1` round-trips
+  unchanged. `id`/timestamps are omitted; default/empty fields (`priority` 1,
+  empty `extra`, absent `sample_facts`) are left out, mirroring
+  `Verdict.Rule.to_map/1`.
+  """
+  @spec to_json_map(t()) :: map()
+  def to_json_map(%__MODULE__{} = rule) do
+    %{
+      "name" => rule.name,
+      "conditions" => conditions_map(rule.conditions)
+    }
+    |> omit_nil("event", rule.event && Event.to_map(rule.event))
+    |> omit_nil("failure_event", rule.failure_event && Event.to_map(rule.failure_event))
+    |> omit_nil("priority", if(rule.priority in [nil, 1], do: nil, else: rule.priority))
+    |> omit_nil("extra", if(rule.extra in [nil, %{}], do: nil, else: rule.extra))
+    |> omit_nil(
+      "sample_facts",
+      if(rule.sample_facts in [nil, %{}], do: nil, else: rule.sample_facts)
+    )
+  end
+
+  @doc "A `data:` URI `href` that downloads the rule as JSON."
+  @spec export_href(t()) :: String.t()
+  def export_href(%__MODULE__{} = rule) do
+    "data:application/json;base64," <> Base.encode64(Jason.encode!(to_json_map(rule)))
+  end
+
+  defp omit_nil(map, _key, nil), do: map
+  defp omit_nil(map, key, value), do: Map.put(map, key, value)
 end

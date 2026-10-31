@@ -34,11 +34,8 @@ defmodule VerdictUI.ConditionTreeTest do
     assert ConditionTree.kind_of(%{}) == :unknown
   end
 
-  test "is_group?/1 and children_of/1" do
+  test "children_of/1" do
     t = tree()
-    assert ConditionTree.is_group?(t)
-    assert ConditionTree.is_group?(ConditionTree.get_node(t, [1, 1]))
-    refute ConditionTree.is_group?(ConditionTree.get_node(t, [0]))
     assert length(ConditionTree.children_of(t)) == 2
     assert ConditionTree.children_of(ConditionTree.get_node(t, [0])) == []
     # a not node exposes its single child as a one-element list
@@ -117,9 +114,7 @@ defmodule VerdictUI.ConditionTreeTest do
     assert length(Ecto.Changeset.apply_changes(changeset).conditions.children) == 2
   end
 
-  test "path string round-trips" do
-    assert ConditionTree.to_path_string([]) == ""
-    assert ConditionTree.to_path_string([1, 0, 2]) == "1.0.2"
+  test "parse_path/1 decodes dot-separated path strings" do
     assert ConditionTree.parse_path("") == []
     assert ConditionTree.parse_path("1.0.2") == [1, 0, 2]
   end

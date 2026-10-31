@@ -236,14 +236,14 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
     assert render(view) =~ "Hey Sam!"
   end
 
-  test "allow-unsafe toggle enables control-flow event templates", %{conn: conn} do
+  test "allow-unsafe toggle enables sandbox-blocked event templates", %{conn: conn} do
     {:ok, a} =
       VerdictUI.create_rule(%{
         name: "u",
         event: %{
           "type" => "verdict",
           "params" => %{
-            "msg" => %{"eex_string" => "<% if x > 5 do %>big<% else %>small<% end %>"}
+            "msg" => %{"eex_string" => "<%= inspect(\"big\") %>"}
           }
         },
         conditions: %{"all" => [%{"fact" => "x", "operator" => "greaterThan", "value" => 0}]}
@@ -255,7 +255,7 @@ defmodule VerdictUIWeb.ScenarioLiveTest do
     view |> render_change("fact", %{"_target" => ["fact-0-name"], "fact-0-name" => "x"})
     view |> render_change("fact", %{"_target" => ["fact-0-value"], "fact-0-value" => "10"})
 
-    # the control is present, and without it the control-flow template is blocked
+    # the toggle is present, and without it the sandbox-blocked template errors
     assert has_element?(view, "#allow-unsafe")
     render_click(view, "run")
     assert has_element?(view, "#run-error")

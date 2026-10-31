@@ -4,7 +4,8 @@ defmodule VerdictUIWeb.RuleTestLive do
 
   alias VerdictUI
   alias VerdictUI.ConditionTree
-  alias VerdictUIWeb.Components.{FactsEditor, ResultsList}
+  alias VerdictUI.LogCapture
+  alias VerdictUIWeb.Components.{FactsEditor, LogsList, ResultsList}
 
   @impl true
   def mount(%{"id" => id}, _session, socket) do
@@ -29,7 +30,8 @@ defmodule VerdictUIWeb.RuleTestLive do
            report: "full",
            schedule: "serial",
            parallel_concurrency: nil,
-           log_level: nil
+           log_level: nil,
+           logs: []
          )}
 
       _ ->
@@ -170,6 +172,7 @@ defmodule VerdictUIWeb.RuleTestLive do
 
           <div :if={@result} id="run-result">
             <ResultsList.results_list results={@result["results"]} />
+            <LogsList.logs_list logs={@logs} />
           </div>
 
           <div :if={!@result && !@error} class="text-sm text-zinc-500">
@@ -285,9 +288,9 @@ defmodule VerdictUIWeb.RuleTestLive do
 
     opts = VerdictUI.run_opts(assign_opts(socket))
 
-    case VerdictUI.run_rules([socket.assigns.rule], facts, opts) do
-      {:ok, result} -> {:noreply, assign(socket, result: result, error: nil)}
-      {:error, msg} -> {:noreply, assign(socket, result: nil, error: msg)}
+    case LogCapture.capture(fn -> VerdictUI.run_rules([socket.assigns.rule], facts, opts) end) do
+      {{:ok, result}, logs} -> {:noreply, assign(socket, result: result, error: nil, logs: logs)}
+      {{:error, msg}, _logs} -> {:noreply, assign(socket, result: nil, error: msg, logs: [])}
     end
   end
 

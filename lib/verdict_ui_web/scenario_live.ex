@@ -4,7 +4,8 @@ defmodule VerdictUIWeb.ScenarioLive do
 
   alias VerdictUI
   alias VerdictUI.ConditionTree
-  alias VerdictUIWeb.Components.{FactsEditor, ResultsList}
+  alias VerdictUI.LogCapture
+  alias VerdictUIWeb.Components.{FactsEditor, LogsList, ResultsList}
 
   @impl true
   def mount(params, _session, socket) do
@@ -33,7 +34,8 @@ defmodule VerdictUIWeb.ScenarioLive do
            report: "full",
            schedule: "serial",
            parallel_concurrency: nil,
-           log_level: nil
+           log_level: nil,
+           logs: []
          )}
 
       id ->
@@ -60,7 +62,8 @@ defmodule VerdictUIWeb.ScenarioLive do
                report: scenario.report || "full",
                schedule: scenario.schedule || "serial",
                parallel_concurrency: scenario.parallel_concurrency,
-               log_level: scenario.log_level
+               log_level: scenario.log_level,
+               logs: []
              )}
 
           _ ->
@@ -359,6 +362,8 @@ defmodule VerdictUIWeb.ScenarioLive do
               rules_by_name={@rules_by_name}
             />
 
+            <LogsList.logs_list logs={@logs} />
+
             <details class="mt-3">
               <summary class="cursor-pointer select-none text-sm text-zinc-400 hover:text-zinc-200">
                 Raw JSON
@@ -546,13 +551,21 @@ defmodule VerdictUIWeb.ScenarioLive do
 
     opts = VerdictUI.run_opts(assign_opts(socket))
 
-    case VerdictUI.run_rules(rules, facts_map(socket.assigns.facts), opts) do
-      {:ok, result} ->
+    case LogCapture.capture(fn ->
+           VerdictUI.run_rules(rules, facts_map(socket.assigns.facts), opts)
+         end) do
+      {{:ok, result}, logs} ->
         {:noreply,
-         assign(socket, result: result, error: nil, rules_by_name: Map.new(rules, &{&1.name, &1}))}
+         assign(
+           socket,
+           result: result,
+           error: nil,
+           logs: logs,
+           rules_by_name: Map.new(rules, &{&1.name, &1})
+         )}
 
-      {:error, msg} ->
-        {:noreply, assign(socket, result: nil, error: msg)}
+      {{:error, msg}, _logs} ->
+        {:noreply, assign(socket, result: nil, error: msg, logs: [])}
     end
   end
 

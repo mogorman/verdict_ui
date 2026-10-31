@@ -71,7 +71,7 @@ defmodule VerdictUIWeb.RuleTestLiveTest do
         event: %{
           "type" => "t",
           "params" => %{
-            "msg" => %{"eex_string" => "<% if fouls > 5 do %>big<% else %>small<% end %>"}
+            "msg" => %{"eex_string" => "<%= inspect(\"big\") %>"}
           }
         },
         conditions: %{
@@ -82,7 +82,7 @@ defmodule VerdictUIWeb.RuleTestLiveTest do
     {:ok, view, _} = live(conn, ~p"/rules/#{rule.id}/test")
     view |> render_change("fact", %{"fact-0-value" => "6"})
 
-    # control flow needs the toggle; without it the run errors
+    # a non-whitelisted call needs the toggle; without it the run errors
     render_click(view, "run")
     assert has_element?(view, "#run-error")
     refute has_element?(view, "#run-result")

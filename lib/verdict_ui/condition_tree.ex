@@ -15,8 +15,6 @@ defmodule VerdictUI.ConditionTree do
   functions are pure — the input tree is never mutated.
   """
 
-  @group_kinds [:all, :any, :not]
-
   @doc "The kind of a node: `:all`, `:any`, `:not`, `:ref`, `:leaf` or `:unknown`."
   def kind_of(%{"all" => _}), do: :all
   def kind_of(%{"any" => _}), do: :any
@@ -24,9 +22,6 @@ defmodule VerdictUI.ConditionTree do
   def kind_of(%{"condition" => _}), do: :ref
   def kind_of(%{"fact" => _}), do: :leaf
   def kind_of(%{}), do: :unknown
-
-  @doc "True for boolean nodes (all/any/not) that carry children."
-  def is_group?(node), do: kind_of(node) in @group_kinds
 
   @doc "The list of children of a node ([] for leaves and refs)."
   def children_of(node) do
@@ -87,15 +82,6 @@ defmodule VerdictUI.ConditionTree do
 
   @doc "An empty leaf to fill in."
   def build_leaf, do: %{"fact" => "", "operator" => "equal", "value" => nil}
-
-  @doc "An empty reference to a named condition."
-  def build_ref, do: %{"condition" => ""}
-
-  @doc """
-  Encodes `path` (a list of child indices) as a dot-separated string: `[]` -> `""`.
-  """
-  def to_path_string([]), do: ""
-  def to_path_string(path), do: path |> Enum.map(&to_string/1) |> Enum.join(".")
 
   @doc "Decodes a dot-separated path string back into a list of integer indices."
   def parse_path(""), do: []

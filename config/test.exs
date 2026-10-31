@@ -20,12 +20,6 @@ config :verdict_ui, VerdictUIWeb.Endpoint,
   secret_key_base: "fKue+YBcrOTfOd6WWnQ19JOJ2PDOfDjFPikAGhPTYtMOLp9no1Xjy+g8GU1KTeTS",
   server: false
 
-# In test we don't send emails
-config :verdict_ui, VerdictUI.Mailer, adapter: Swoosh.Adapters.Test
-
-# Disable swoosh api client as it is only required for production adapters
-config :swoosh, :api_client, false
-
 # Print only warnings and errors during test
 config :logger, level: :warning
 

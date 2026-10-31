@@ -157,7 +157,7 @@ defmodule VerdictUIWeb.ScenarioLive do
             <label
               id="allow-unsafe"
               for="scenario-allow-unsafe"
-              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/70"
             >
               <input
                 id="scenario-allow-unsafe"
@@ -168,7 +168,7 @@ defmodule VerdictUIWeb.ScenarioLive do
                 class="checkbox mt-0.5 shrink-0"
               />
               <span>
-                <span class="font-medium text-zinc-200">Allow unsafe EEx templates</span>
+                <span class="font-medium text-zinc-800 dark:text-zinc-200">Allow unsafe EEx templates</span>
                 <span class="block text-xs text-zinc-500">
                   Enables control-flow templates (if / for / cond) in event params.
                 </span>
@@ -178,7 +178,7 @@ defmodule VerdictUIWeb.ScenarioLive do
             <label
               id="allow-undefined-facts"
               for="scenario-allow-undefined-facts"
-              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/70"
             >
               <input
                 id="scenario-allow-undefined-facts"
@@ -189,7 +189,7 @@ defmodule VerdictUIWeb.ScenarioLive do
                 class="checkbox mt-0.5 shrink-0"
               />
               <span>
-                <span class="font-medium text-zinc-200">Allow undefined facts</span>
+                <span class="font-medium text-zinc-800 dark:text-zinc-200">Allow undefined facts</span>
                 <span class="block text-xs text-zinc-500">
                   Facts referenced by a rule but not provided evaluate as nil instead of
                   erroring.
@@ -200,7 +200,7 @@ defmodule VerdictUIWeb.ScenarioLive do
             <label
               id="allow-undefined-conditions"
               for="scenario-allow-undefined-conditions"
-              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/70"
             >
               <input
                 id="scenario-allow-undefined-conditions"
@@ -211,7 +211,7 @@ defmodule VerdictUIWeb.ScenarioLive do
                 class="checkbox mt-0.5 shrink-0"
               />
               <span>
-                <span class="font-medium text-zinc-200">Allow undefined conditions</span>
+                <span class="font-medium text-zinc-800 dark:text-zinc-200">Allow undefined conditions</span>
                 <span class="block text-xs text-zinc-500">
                   A condition reference that was never registered evaluates as false
                   instead of erroring.
@@ -222,7 +222,7 @@ defmodule VerdictUIWeb.ScenarioLive do
             <label
               id="strict"
               for="scenario-strict"
-              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/70"
             >
               <input
                 id="scenario-strict"
@@ -233,7 +233,7 @@ defmodule VerdictUIWeb.ScenarioLive do
                 class="checkbox mt-0.5 shrink-0"
               />
               <span>
-                <span class="font-medium text-zinc-200">Strict evaluation</span>
+                <span class="font-medium text-zinc-800 dark:text-zinc-200">Strict evaluation</span>
                 <span class="block text-xs text-zinc-500">
                   Evaluate every condition instead of short-circuiting on the first
                   decisive leaf.
@@ -244,7 +244,7 @@ defmodule VerdictUIWeb.ScenarioLive do
             <label
               id="replace-facts-in-event-params"
               for="scenario-replace-facts"
-              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm hover:bg-zinc-900/70"
+              class="flex cursor-pointer items-start gap-2 rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm hover:bg-zinc-200 dark:border-zinc-800 dark:bg-zinc-900/40 dark:hover:bg-zinc-900/70"
             >
               <input
                 id="scenario-replace-facts"
@@ -255,7 +255,7 @@ defmodule VerdictUIWeb.ScenarioLive do
                 class="checkbox mt-0.5 shrink-0"
               />
               <span>
-                <span class="font-medium text-zinc-200">Replace facts in event params</span>
+                <span class="font-medium text-zinc-800 dark:text-zinc-200">Replace facts in event params</span>
                 <span class="block text-xs text-zinc-500">
                   Resolve fact references in top-level event params to their computed
                   values before the event is emitted.
@@ -263,8 +263,11 @@ defmodule VerdictUIWeb.ScenarioLive do
               </span>
             </label>
 
-            <div class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm">
-              <label for="scenario-report" class="mb-1 block font-medium text-zinc-200">
+            <div class="rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900/40">
+              <label
+                for="scenario-report"
+                class="mb-1 block font-medium text-zinc-800 dark:text-zinc-200"
+              >
                 Report detail
               </label>
               <select
@@ -283,8 +286,11 @@ defmodule VerdictUIWeb.ScenarioLive do
               </select>
             </div>
 
-            <div class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm">
-              <label for="scenario-schedule" class="mb-1 block font-medium text-zinc-200">
+            <div class="rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900/40">
+              <label
+                for="scenario-schedule"
+                class="mb-1 block font-medium text-zinc-800 dark:text-zinc-200"
+              >
                 Schedule
               </label>
               <select
@@ -298,8 +304,11 @@ defmodule VerdictUIWeb.ScenarioLive do
               </select>
             </div>
 
-            <div class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm">
-              <label for="scenario-parallel-concurrency" class="mb-1 block font-medium text-zinc-200">
+            <div class="rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900/40">
+              <label
+                for="scenario-parallel-concurrency"
+                class="mb-1 block font-medium text-zinc-800 dark:text-zinc-200"
+              >
                 Parallel concurrency
               </label>
               <input
@@ -314,8 +323,11 @@ defmodule VerdictUIWeb.ScenarioLive do
               />
             </div>
 
-            <div class="rounded-md border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-sm">
-              <label for="scenario-log-level" class="mb-1 block font-medium text-zinc-200">
+            <div class="rounded-md border border-zinc-300 bg-zinc-100 px-3 py-2 text-sm dark:border-zinc-800 dark:bg-zinc-900/40">
+              <label
+                for="scenario-log-level"
+                class="mb-1 block font-medium text-zinc-800 dark:text-zinc-200"
+              >
                 Log level
               </label>
               <select
@@ -335,7 +347,7 @@ defmodule VerdictUIWeb.ScenarioLive do
         </div>
 
         <div class="rounded-lg border border-zinc-800 p-4">
-          <h2 class="mb-3 font-semibold text-zinc-200">Result</h2>
+          <h2 class="mb-3 font-semibold text-zinc-800 dark:text-zinc-200">Result</h2>
 
           <div :if={@error} id="run-error" class="alert alert-error">
             <p class="text-sm">{@error}</p>
@@ -362,10 +374,8 @@ defmodule VerdictUIWeb.ScenarioLive do
               rules_by_name={@rules_by_name}
             />
 
-            <LogsList.logs_list logs={@logs} />
-
             <details class="mt-3">
-              <summary class="cursor-pointer select-none text-sm text-zinc-400 hover:text-zinc-200">
+              <summary class="cursor-pointer select-none text-sm text-zinc-400 hover:text-zinc-800 dark:text-zinc-200">
                 Raw JSON
               </summary>
 
@@ -376,6 +386,8 @@ defmodule VerdictUIWeb.ScenarioLive do
                 {Jason.encode!(@result, pretty: true)}
               </pre>
             </details>
+
+            <LogsList.logs_list logs={@logs} />
           </div>
 
           <div :if={!@result && !@error} class="text-sm text-zinc-500">

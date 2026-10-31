@@ -56,8 +56,8 @@ defmodule VerdictUIWeb.Components.ResultsList do
             class={[
               "flex flex-wrap items-center gap-x-2 rounded px-2 py-1",
               if(leaf["result"],
-                do: "bg-green-500/10 text-green-300",
-                else: "bg-red-500/10 text-red-300"
+                do: "bg-green-500/10 text-green-700 dark:text-green-300",
+                else: "bg-red-500/10 text-red-700 dark:text-red-300"
               )
             ]}
           >
@@ -91,11 +91,11 @@ defmodule VerdictUIWeb.Components.ResultsList do
       class={[
         "flex flex-wrap items-center gap-x-2 rounded px-2 py-1 text-sm",
         if(@node.badge == :pass,
-          do: "bg-green-500/10 text-green-300",
+          do: "bg-green-500/10 text-green-700 dark:text-green-300",
           else:
             if(@node.badge == :fail,
-              do: "bg-red-500/10 text-red-300",
-              else: "bg-base-200/40 text-zinc-400"
+              do: "bg-red-500/10 text-red-700 dark:text-red-300",
+              else: "bg-base-200/40 text-zinc-500 dark:text-zinc-400"
             )
         )
       ]}
@@ -230,8 +230,8 @@ defmodule VerdictUIWeb.Components.ResultsList do
   defp negate(:fail), do: :pass
   defp negate(_), do: :unknown
 
-  defp badge_class(:pass), do: "text-green-300"
-  defp badge_class(:fail), do: "text-red-300"
+  defp badge_class(:pass), do: "text-green-700 dark:text-green-300"
+  defp badge_class(:fail), do: "text-red-700 dark:text-red-300"
   defp badge_class(_), do: "text-zinc-500"
 
   defp badge_label(:pass), do: "✓"

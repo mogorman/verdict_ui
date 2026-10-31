@@ -171,7 +171,7 @@ defmodule VerdictUIWeb.RuleIndexLive do
   # to the engine's `changeset/2`, the inverse of the export's `to_map/1`, so an
   # exported file round-trips back in unchanged.
   defp import_rule(source, socket) do
-    case Jason.decode(source) do
+    case VerdictUI.JSON.decode(source) do
       {:ok, map} when is_map(map) ->
         import_create(map, socket)
 

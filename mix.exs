@@ -65,7 +65,6 @@ defmodule VerdictUI.MixProject do
        app: false,
        compile: false,
        depth: 1},
-      {:jason, "~> 1.2"},
       {:dns_cluster, "~> 0.2.0"},
       {:bandit, "~> 1.5"}
     ]

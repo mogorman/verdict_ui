@@ -145,7 +145,7 @@ defmodule VerdictUI.Rule do
   @doc "A `data:` URI `href` that downloads the rule as JSON."
   @spec export_href(t()) :: String.t()
   def export_href(%__MODULE__{} = rule) do
-    "data:application/json;base64," <> Base.encode64(Jason.encode!(to_json_map(rule)))
+    "data:application/json;base64," <> Base.encode64(VerdictUI.JSON.encode!(to_json_map(rule)))
   end
 
   defp omit_nil(map, _key, nil), do: map

@@ -5,7 +5,7 @@ defmodule VerdictUIWeb.ScenarioLive do
   alias VerdictUI
   alias VerdictUI.ConditionTree
   alias VerdictUI.LogCapture
-  alias VerdictUIWeb.Components.{FactsEditor, LogsList, ResultsList}
+  alias VerdictUIWeb.Components.{FactsEditor, JsonTree, LogsList, ResultsList}
 
   @impl true
   def mount(params, _session, socket) do
@@ -375,16 +375,16 @@ defmodule VerdictUIWeb.ScenarioLive do
             />
 
             <details class="mt-3">
-              <summary class="cursor-pointer select-none text-sm text-zinc-400 hover:text-zinc-800 dark:text-zinc-200">
+              <summary class="cursor-pointer select-none text-sm text-zinc-500 hover:text-zinc-800 dark:text-zinc-400 dark:hover:text-zinc-200">
                 Raw JSON
               </summary>
 
-              <pre
+              <div
                 id="run-raw-json"
-                class="mt-2 overflow-x-auto rounded-md bg-zinc-900/60 p-3 text-xs font-mono text-zinc-300"
+                class="mt-2 overflow-x-auto rounded-md bg-zinc-100 p-3 font-mono dark:bg-zinc-900/60"
               >
-                {Jason.encode!(@result, pretty: true)}
-              </pre>
+                <JsonTree.json_tree value={@result} />
+              </div>
             </details>
 
             <LogsList.logs_list logs={@logs} />

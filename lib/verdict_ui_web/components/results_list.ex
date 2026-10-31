@@ -44,7 +44,7 @@ defmodule VerdictUIWeb.Components.ResultsList do
             {event["type"]}
           </span>
           <span :if={params = event["params"]} class="font-mono text-xs opacity-80">
-            {Jason.encode!(params)}
+            {VerdictUI.JSON.encode!(params)}
           </span>
         </div>
 
@@ -240,5 +240,5 @@ defmodule VerdictUIWeb.Components.ResultsList do
 
   defp fmt(nil), do: "∅"
   defp fmt(value) when is_binary(value), do: value
-  defp fmt(value), do: Jason.encode!(value)
+  defp fmt(value), do: VerdictUI.JSON.encode!(value)
 end

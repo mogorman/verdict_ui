@@ -188,11 +188,11 @@ defmodule VerdictUIWeb.Components.ConditionEditor do
 
   # phx-click `value` attributes must be HTML-safe, so the payload is a JSON
   # string; the client forwards it and the LiveView decodes it (see `payload/1`).
-  defp val(map), do: Jason.encode!(map)
+  defp val(map), do: VerdictUI.JSON.encode!(map)
 
   defp format_preview(nil), do: "∅"
   defp format_preview(value) when is_binary(value), do: value
-  defp format_preview(value), do: Jason.encode!(value)
+  defp format_preview(value), do: VerdictUI.JSON.encode!(value)
 
   defp operator_options(current, operators) do
     opts = Enum.map(operators, &{&1, &1})

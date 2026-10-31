@@ -42,8 +42,8 @@ defmodule VerdictUITest do
     {:ok, rule} = VerdictUI.create_rule(attrs)
     stored = VerdictUI.get_rule(rule.id)
 
-    json = VerdictUI.Rule.to_json_map(stored) |> Jason.encode!()
-    {:ok, decoded} = Jason.decode(json)
+    json = VerdictUI.Rule.to_json_map(stored) |> VerdictUI.JSON.encode!()
+    {:ok, decoded} = VerdictUI.JSON.decode(json)
 
     {:ok, imported} = VerdictUI.create_rule(decoded)
     reimported = VerdictUI.get_rule(imported.id)
@@ -65,7 +65,7 @@ defmodule VerdictUITest do
 
     encoded = String.replace_prefix(href, prefix, "")
     {:ok, json} = Base.decode64(encoded)
-    {:ok, map} = Jason.decode(json)
+    {:ok, map} = VerdictUI.JSON.decode(json)
     assert map["name"] == "fouled-out"
     assert map["priority"] == 5
   end

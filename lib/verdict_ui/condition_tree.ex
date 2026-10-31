@@ -113,7 +113,7 @@ defmodule VerdictUI.ConditionTree do
   def parse_value(""), do: nil
 
   def parse_value(value) when is_binary(value) do
-    case Jason.decode(value) do
+    case VerdictUI.JSON.decode(value) do
       {:ok, decoded} -> decoded
       {:error, _} -> value
     end
@@ -122,7 +122,7 @@ defmodule VerdictUI.ConditionTree do
   @doc "Renders a stored value as text for the editor (the inverse of `parse_value/1`)."
   def value_to_input(nil), do: ""
   def value_to_input(value) when is_binary(value), do: value
-  def value_to_input(value), do: Jason.encode!(value)
+  def value_to_input(value), do: VerdictUI.JSON.encode!(value)
 
   @doc "The sorted list of unique fact names referenced by leaf nodes in the tree."
   def fact_names(tree) do

@@ -48,7 +48,7 @@ defmodule VerdictUIWeb.RuleIndexLiveTest do
     render_click(view, "toggle-import")
 
     json =
-      Jason.encode!(%{
+      VerdictUI.JSON.encode!(%{
         "name" => "imported-rule",
         "event" => %{"type" => "importedEvent"},
         "conditions" => %{"all" => [%{"fact" => "a", "operator" => "equal", "value" => 2}]}
@@ -76,7 +76,7 @@ defmodule VerdictUIWeb.RuleIndexLiveTest do
   test "import rejects a rule that fails validation", %{conn: conn} do
     {:ok, view, _html} = live(conn, ~p"/rules")
     render_click(view, "toggle-import")
-    render_submit(view, "import", %{"source" => Jason.encode!(%{"name" => "x"})})
+    render_submit(view, "import", %{"source" => VerdictUI.JSON.encode!(%{"name" => "x"})})
     assert has_element?(view, "#import-error")
   end
 end

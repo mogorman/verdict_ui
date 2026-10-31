@@ -369,7 +369,7 @@ defmodule VerdictUIWeb.RuleFormLive do
   defp payload(params) do
     case params["value"] do
       nil -> Map.new(params)
-      s when is_binary(s) -> s |> Jason.decode!() |> Map.new()
+      s when is_binary(s) -> s |> VerdictUI.JSON.decode!() |> Map.new()
       m when is_map(m) -> Map.new(m)
     end
   end
@@ -664,7 +664,7 @@ defmodule VerdictUIWeb.RuleFormLive do
         do: Map.put(base, "failure_event", failure_event),
         else: base
 
-    Jason.encode!(base, pretty: true)
+    VerdictUI.JSON.encode!(base, pretty: true)
   end
 
   defp build_event_map(nil, _params), do: nil
